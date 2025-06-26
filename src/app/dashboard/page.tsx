@@ -1,0 +1,356 @@
+'use client';
+import { useEffect, useState } from 'react';
+import { useSupabase } from '@/hooks/use-supabase';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { SiteHeader } from '@/components/site-header';
+import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
+import { AppSidebar } from '@/components/app-sidebar';
+import Link from 'next/link';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { IconLayoutGrid, IconTable } from '@tabler/icons-react';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { ChevronsUpDown, Check } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { getTemplate } from '@/lib/actions';
+import { Organization } from '@/context/OrganizationContext';
+
+type Project = { id: string; name: string; description?: string };
+type Template = {
+  defaultName: string;
+  defaultDescription: string;
+  userTargets: string[];
+  requirements: string[];
+};
+
+const projectTypes = [
+  { value: 'attendance', label: 'Attendance' },
+  // Add more types as you add more templates
+];
+
+export default function DashboardPage() {
+  const supabase = useSupabase() as SupabaseClient;
+  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [showNewProject, setShowNewProject] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const [newProjectDescription, setNewProjectDescription] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [view, setView] = useState<'grid' | 'table'>('grid');
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [template, setTemplate] = useState<Template | null>(null);
+  const [projectType, setProjectType] = useState('attendance');
+  const [openTypePopover, setOpenTypePopover] = useState(false);
+
+  // Fetch organizations and set default selected org
+  useEffect(() => {
+    const fetchOrgs = async () => {
+      const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null;
+      if (user) {
+        // Fetch orgs where user is owner
+        const { data: ownedOrgs } = await supabase
+          .from('organizations')
+          .select('*')
+          .eq('owner', user.id);
+        // Fetch orgs where user is a member
+        const { data: memberLinks } = await supabase
+          .from('organization_team_members')
+          .select('organization_id')
+          .eq('user_id', user.id);
+        const memberOrgIds = (memberLinks || []).map(m => m.organization_id);
+        let memberOrgs = [];
+        if (memberOrgIds.length > 0) {
+          const { data } = await supabase
+            .from('organizations')
+            .select('*')
+            .in('id', memberOrgIds);
+          memberOrgs = data || [];
+        }
+        const allOrgs = [...(ownedOrgs || []), ...memberOrgs];
+        if (!selectedOrg && allOrgs.length > 0) {
+          setSelectedOrg(allOrgs[0]);
+        }
+        // Optionally, set allOrgs in state if you want to show a list
+      }
+    };
+    fetchOrgs();
+  }, [supabase, selectedOrg]);
+
+  // Fetch projects for selected org
+  useEffect(() => {
+    if (!selectedOrg) return;
+    const fetchProjects = async () => {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('organization_id', selectedOrg.id);
+      if (!error) setProjects(data || []);
+    };
+    fetchProjects();
+  }, [supabase, selectedOrg]);
+
+  useEffect(() => {
+    if (!selectedOrg) return;
+    const fetchRole = async () => {
+      const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null;
+      if (user && user.id) {
+        const { data: member } = await supabase
+          .from('organization_team_members')
+          .select('role')
+          .eq('user_id', user.id)
+          .eq('organization_id', selectedOrg.id)
+          .single();
+        setUserRole(member?.role || '');
+      }
+    };
+    fetchRole();
+  }, [supabase, selectedOrg]);
+
+  const handleOrgChange = (org: Organization) => {
+    setSelectedOrg(org);
+    setProjects([]);
+  };
+
+  const handleNewProjectClick = async () => {
+    setShowNewProject(true);
+    const data = await getTemplate(projectType);
+    if (data) {
+      setTemplate(data);
+      setNewProjectName(data.defaultName || '');
+      setNewProjectDescription(data.defaultDescription || '');
+    }
+  };
+
+  useEffect(() => {
+    if (showNewProject) {
+      getTemplate(projectType).then(data => {
+        if (data) {
+          setTemplate(data);
+          setNewProjectName(data.defaultName || '');
+          setNewProjectDescription(data.defaultDescription || '');
+        }
+      });
+    }
+  }, [projectType, showNewProject]);
+
+  const handleNewProject = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    if (!selectedOrg) {
+      setError('No organization selected.');
+      setLoading(false);
+      return;
+    }
+    const { error, data } = await supabase
+      .from('projects')
+      .insert([
+        {
+          name: newProjectName,
+          description: newProjectDescription,
+          organization_id: selectedOrg.id,
+          type: projectType,
+          user_targets: template?.userTargets || [],
+          requirements: template?.requirements || [],
+        },
+      ])
+      .select();
+    setLoading(false);
+    if (error) {
+      setError(error.message);
+    } else if (data && data.length > 0) {
+      setProjects([...projects, data[0]]);
+      setShowNewProject(false);
+      setNewProjectName('');
+      setNewProjectDescription('');
+    }
+  };
+
+  return (
+    <SidebarProvider
+      style={{
+        '--sidebar-width': 'calc(var(--spacing) * 72)',
+        '--header-height': 'calc(var(--spacing) * 12)',
+      } as React.CSSProperties}
+    >
+      {selectedOrg && (
+        <AppSidebar orgId={selectedOrg?.id || ''} />
+      )}
+      <SidebarInset>
+        <SiteHeader onOrgChange={handleOrgChange} />
+        <main className="flex flex-col items-center gap-8 p-8">
+          {!selectedOrg ? (
+            <div className="w-full max-w-lg text-center text-muted-foreground">
+              No organization found. Please create an organization to get started.
+            </div>
+          ) : (
+            <div className="w-full">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">Projects in {selectedOrg.name}</h2>
+                <div className="flex gap-2">
+                  <ToggleGroup type="single" value={view} onValueChange={v => v && setView(v as 'grid' | 'table')}>
+                    <ToggleGroupItem value="grid" aria-label="Grid view">
+                      <IconLayoutGrid className="size-5" />
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="table" aria-label="Table view">
+                      <IconTable className="size-5" />
+                    </ToggleGroupItem>
+                  </ToggleGroup>
+                  {userRole !== 'faculty' && (
+                    <Button onClick={handleNewProjectClick}>
+                      New Project
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <Card>
+                <CardContent>
+                  {projects.length === 0 ? (
+                    <div className="text-muted-foreground">No projects yet.</div>
+                  ) : view === 'grid' ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {projects.map(project => (
+                        <Link key={project.id}
+                          href={`/dashboard/project/${project.id}`}
+                          className="block border rounded p-4 hover:bg-accent transition">
+                          <div className="font-semibold text-lg">{project.name}</div>
+                          {project.description && (
+                            <div className="text-muted-foreground text-sm mt-1">{project.description}</div>
+                          )}
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {projects.map(project => (
+                          <TableRow key={project.id}>
+                            <TableCell>
+                              <Link href={`/dashboard/project/${project.id}`} className="font-medium hover:underline">
+                                {project.name}
+                              </Link>
+                            </TableCell>
+                            <TableCell>
+                              <span className="text-muted-foreground text-sm">{project.description}</span>
+                            </TableCell>
+                            <TableCell>
+                              <Link href={`/dashboard/project/${project.id}`}>
+                                <Button size="sm" variant="outline">
+                                  Open
+                                </Button>
+                              </Link>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
+          <Dialog open={showNewProject} onOpenChange={setShowNewProject}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>New Project</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleNewProject} className="flex flex-col gap-4">
+                <label className="text-sm font-medium">Project Type</label>
+                <Popover open={openTypePopover} onOpenChange={setOpenTypePopover}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={openTypePopover}
+                      className="w-full justify-between"
+                    >
+                      {projectTypes.find((t) => t.value === projectType)?.label || 'Select project type'}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-full p-0">
+                    <Command>
+                      <CommandInput placeholder="Search type..." className="h-9" />
+                      <CommandList>
+                        <CommandEmpty>No type found.</CommandEmpty>
+                        <CommandGroup>
+                          {projectTypes.map((type) => (
+                            <CommandItem
+                              key={type.value}
+                              value={type.value}
+                              onSelect={() => {
+                                setProjectType(type.value);
+                                setOpenTypePopover(false);
+                              }}
+                            >
+                              {type.label}
+                              <Check
+                                className={
+                                  projectType === type.value
+                                    ? 'ml-auto opacity-100'
+                                    : 'ml-auto opacity-0'
+                                }
+                              />
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+                <Input
+                  type="text"
+                  placeholder="Project name"
+                  value={newProjectName}
+                  onChange={e => setNewProjectName(e.target.value)}
+                  required
+                  autoFocus
+                />
+                <Input
+                  type="text"
+                  placeholder="Project description (optional)"
+                  value={newProjectDescription}
+                  onChange={e => setNewProjectDescription(e.target.value)}
+                />
+                {template && (
+                  <div className="text-sm text-muted-foreground">
+                    <div className="mb-2 font-semibold">User Targets:</div>
+                    <ul className="mb-2 list-disc list-inside">
+                      {template.userTargets.map((target: string) => (
+                        <li key={target}>{target}</li>
+                      ))}
+                    </ul>
+                    <div className="mb-2 font-semibold">Requirements:</div>
+                    <ul className="list-disc list-inside">
+                      {template.requirements.map((req: string) => (
+                        <li key={req}>{req}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {error && <div className="text-destructive text-sm">{error}</div>}
+                <DialogFooter>
+                  <Button type="submit" disabled={loading}>
+                    {loading ? 'Creating...' : 'Create'}
+                  </Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </main>
+      </SidebarInset>
+    </SidebarProvider>
+  );
+}

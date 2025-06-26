@@ -1,0 +1,14 @@
+{
+  "type": "Attendance",
+  "defaultName": "Attendance Management System",
+  "defaultDescription": "This project is created to manage attendance of faculty.",
+  "userTargets": ["Admin", "Faculty", "Students"],
+  "requirements": [
+    "Faculty attendance logging",
+    "Student attendance tracking",
+    "Admin dashboard for attendance reports",
+    "Notifications for absentees",
+    "Export attendance data (CSV/Excel)",
+    "Attendance summary and analytics"
+  ]
+} 
