@@ -26,6 +26,7 @@ export function ProjectSidebar({ orgId, projectId }: { orgId: string; projectId:
   const [userRole, setUserRole] = useState<string | null>(null);
   const [roleLoading, setRoleLoading] = useState(true);
   const [requirements, setRequirements] = useState<string[]>([]);
+  const [projectType, setProjectType] = useState<string | null>(null);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -39,13 +40,14 @@ export function ProjectSidebar({ orgId, projectId }: { orgId: string; projectId:
           .single();
         setUserRole(member?.role || '');
         setRoleLoading(false);
-        // Fetch project requirements
+        // Fetch project requirements and type
         const { data: project } = await supabase
           .from('projects')
-          .select('requirements')
+          .select('requirements, type')
           .eq('id', projectId)
           .single();
         setRequirements(Array.isArray(project?.requirements) ? project.requirements : []);
+        setProjectType(project?.type || null);
       }
     }
     fetchRoleAndRequirements();
@@ -120,6 +122,15 @@ export function ProjectSidebar({ orgId, projectId }: { orgId: string; projectId:
           {/* Render nav items based on requirements */}
           {!roleLoading && userRole !== 'faculty' && (
             <>
+              {projectType === 'admission' && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === `/dashboard/project/${projectId}/admission`}>
+                    <Link href={`/dashboard/project/${projectId}/admission`}>
+                      <IconUsers className="mr-2" /> Admission
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {requirements.map(req => {
                 const nav = requirementNav.find(n => n.match === req);
                 if (!nav) return null;
@@ -139,6 +150,29 @@ export function ProjectSidebar({ orgId, projectId }: { orgId: string; projectId:
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+            </>
+          )}
+          {/* For faculty, show only Faculty Attendance and Export Data if present */}
+          {!roleLoading && userRole === 'faculty' && (
+            <>
+              {requirements.includes('Faculty attendance logging') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === `/dashboard/project/${projectId}/faculty-attendance`}>
+                    <Link href={`/dashboard/project/${projectId}/faculty-attendance`}>
+                      <IconUserCheck className="mr-2" /> Faculty Attendance
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {requirements.includes('Export attendance data (CSV/Excel)') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === `/dashboard/project/${projectId}/export-data`}>
+                    <Link href={`/dashboard/project/${projectId}/export-data`}>
+                      <IconFileText className="mr-2" /> Export Data
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </>
           )}
         </SidebarMenu>

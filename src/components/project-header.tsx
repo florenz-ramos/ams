@@ -1,6 +1,5 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import ModeToggle from "@/components/mode-toggle";
 import React from "react";
@@ -21,7 +20,7 @@ export default function ProjectHeader({ project }: { project: { name?: string; d
 
         </div>
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
+          {/* <Button variant="ghost" asChild size="sm" className="hidden sm:flex">
             <a
               href="https://github.com/shadcn-ui/ui/tree/main/apps/v4/app/(examples)/dashboard"
               rel="noopener noreferrer"
@@ -30,7 +29,7 @@ export default function ProjectHeader({ project }: { project: { name?: string; d
             >
               GitHub
             </a>
-          </Button>
+          </Button> */}
           <ModeToggle />
         </div>
       </div>

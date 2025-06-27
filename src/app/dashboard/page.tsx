@@ -21,16 +21,14 @@ import { Organization } from '@/context/OrganizationContext';
 
 type Project = { id: string; name: string; description?: string };
 type Template = {
-  defaultName: string;
-  defaultDescription: string;
-  userTargets: string[];
+  id: string;
+  name: string;
+  type: string;
+  default_name: string;
+  default_description: string;
+  user_targets: string[];
   requirements: string[];
 };
-
-const projectTypes = [
-  { value: 'attendance', label: 'Attendance' },
-  // Add more types as you add more templates
-];
 
 export default function DashboardPage() {
   const supabase = useSupabase() as SupabaseClient;
@@ -46,6 +44,7 @@ export default function DashboardPage() {
   const [template, setTemplate] = useState<Template | null>(null);
   const [projectType, setProjectType] = useState('attendance');
   const [openTypePopover, setOpenTypePopover] = useState(false);
+  const [availableTemplates, setAvailableTemplates] = useState<{ value: string; label: string }[]>([]);
 
   // Fetch organizations and set default selected org
   useEffect(() => {
@@ -111,6 +110,29 @@ export default function DashboardPage() {
     fetchRole();
   }, [supabase, selectedOrg]);
 
+  // Fetch available templates
+  useEffect(() => {
+    const fetchTemplates = async () => {
+      const { data, error } = await supabase
+        .from('templates')
+        .select('name, type')
+        .order('type');
+      
+      if (!error && data) {
+        const templates = data.map(t => ({
+          value: t.name,
+          label: t.type
+        }));
+        setAvailableTemplates(templates);
+        // Set default project type to first available template
+        if (templates.length > 0 && !templates.find(t => t.value === projectType)) {
+          setProjectType(templates[0].value);
+        }
+      }
+    };
+    fetchTemplates();
+  }, [supabase, projectType]);
+
   const handleOrgChange = (org: Organization) => {
     setSelectedOrg(org);
     setProjects([]);
@@ -118,21 +140,25 @@ export default function DashboardPage() {
 
   const handleNewProjectClick = async () => {
     setShowNewProject(true);
+    console.log('PROJECT TYPE DEBUG (handleNewProjectClick)', projectType);
     const data = await getTemplate(projectType);
+    console.log('TEMPLATE DATA DEBUG (handleNewProjectClick)', data);
     if (data) {
       setTemplate(data);
-      setNewProjectName(data.defaultName || '');
-      setNewProjectDescription(data.defaultDescription || '');
+      setNewProjectName(data.default_name || '');
+      setNewProjectDescription(data.default_description || '');
     }
   };
 
   useEffect(() => {
     if (showNewProject) {
+      console.log('PROJECT TYPE DEBUG (useEffect)', projectType);
       getTemplate(projectType).then(data => {
+        console.log('TEMPLATE DATA DEBUG (useEffect)', data);
         if (data) {
           setTemplate(data);
-          setNewProjectName(data.defaultName || '');
-          setNewProjectDescription(data.defaultDescription || '');
+          setNewProjectName(data.default_name || '');
+          setNewProjectDescription(data.default_description || '');
         }
       });
     }
@@ -155,7 +181,7 @@ export default function DashboardPage() {
           description: newProjectDescription,
           organization_id: selectedOrg.id,
           type: projectType,
-          user_targets: template?.userTargets || [],
+          user_targets: template?.user_targets || [],
           requirements: template?.requirements || [],
         },
       ])
@@ -170,6 +196,11 @@ export default function DashboardPage() {
       setNewProjectDescription('');
     }
   };
+
+  // Debug: log template whenever it changes
+  useEffect(() => {
+    console.log('TEMPLATE DEBUG', template);
+  }, [template]);
 
   return (
     <SidebarProvider
@@ -276,7 +307,7 @@ export default function DashboardPage() {
                       aria-expanded={openTypePopover}
                       className="w-full justify-between"
                     >
-                      {projectTypes.find((t) => t.value === projectType)?.label || 'Select project type'}
+                      {availableTemplates.find((t) => t.value === projectType)?.label || 'Select project type'}
                       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                     </Button>
                   </PopoverTrigger>
@@ -286,7 +317,7 @@ export default function DashboardPage() {
                       <CommandList>
                         <CommandEmpty>No type found.</CommandEmpty>
                         <CommandGroup>
-                          {projectTypes.map((type) => (
+                          {availableTemplates.map((type) => (
                             <CommandItem
                               key={type.value}
                               value={type.value}
@@ -326,9 +357,15 @@ export default function DashboardPage() {
                 />
                 {template && (
                   <div className="text-sm text-muted-foreground">
+                    {template.default_description && (
+                      <div className="mb-4">
+                        <div className="mb-1 font-semibold">Template Description:</div>
+                        <div>{template.default_description}</div>
+                      </div>
+                    )}
                     <div className="mb-2 font-semibold">User Targets:</div>
                     <ul className="mb-2 list-disc list-inside">
-                      {template.userTargets.map((target: string) => (
+                      {template.user_targets.map((target: string) => (
                         <li key={target}>{target}</li>
                       ))}
                     </ul>

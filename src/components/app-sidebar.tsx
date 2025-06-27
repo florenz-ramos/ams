@@ -13,6 +13,7 @@ import { useSupabase } from '@/hooks/use-supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { usePathname } from 'next/navigation';
 import { useOrganization } from '@/context/OrganizationContext';
+import Link from 'next/link';
 
 import { NavUser } from "@/components/nav-user"
 import {
@@ -107,6 +108,13 @@ export function AppSidebar({ orgId }: { orgId: string }) {
                   <a href="/dashboard/team">
                     <IconUsers className="mr-2" /> Team
                   </a>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === '/dashboard/students'}>
+                  <Link href="/dashboard/students">
+                    <IconUsers className="mr-2" /> Students
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>

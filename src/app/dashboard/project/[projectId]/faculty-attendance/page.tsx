@@ -52,6 +52,25 @@ export default function FacultyAttendancePage() {
   const [modalFacultyId, setModalFacultyId] = useState<string>('');
   const [modalDate, setModalDate] = useState<string>(date);
   const [project, setProject] = useState<Project | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  // Get logged-in user and role
+  useEffect(() => {
+    const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null;
+    setUserId(user?.id || null);
+    async function fetchRole() {
+      if (!user?.id || !orgId) return;
+      const { data: member } = await supabase
+        .from('organization_team_members')
+        .select('role')
+        .eq('user_id', user.id)
+        .eq('organization_id', orgId)
+        .single();
+      setUserRole(member?.role || null);
+    }
+    fetchRole();
+  }, [orgId, supabase]);
 
   // Fetch orgId
   useEffect(() => {
@@ -82,13 +101,18 @@ export default function FacultyAttendancePage() {
           .from('users')
           .select('id, name, email')
           .in('id', facultyIds);
-        setFaculty((facultyData as Faculty[]) || []);
+        let facultyList = (facultyData as Faculty[]) || [];
+        // If user is faculty, only show their own record
+        if (userRole === 'faculty' && userId) {
+          facultyList = facultyList.filter(f => f.id === userId);
+        }
+        setFaculty(facultyList);
       } else {
         setFaculty([]);
       }
     }
     fetchFaculty();
-  }, [orgId, supabase]);
+  }, [orgId, supabase, userRole, userId]);
 
   // Standalone fetchAttendance function
   const fetchAttendance = useCallback(async (): Promise<void> => {
@@ -210,7 +234,9 @@ export default function FacultyAttendancePage() {
                 <Label htmlFor="date">Date</Label>
                 <Input id="date" type="date" value={date} onChange={e => setDate(e.target.value)} className="ml-2 inline-block w-auto" />
               </div>
-              <Button onClick={openAddAttendanceModal} variant="default">Add New Attendance</Button>
+              {userRole !== 'faculty' && (
+                <Button onClick={openAddAttendanceModal} variant="default">Add New Attendance</Button>
+              )}
             </div>
             {errorMsg && (
               <div className="text-red-600 mb-4">{errorMsg}</div>
@@ -265,7 +291,7 @@ export default function FacultyAttendancePage() {
                   <DialogTitle>{modalMode === 'add' ? 'Add New Attendance' : 'Manual Attendance'}</DialogTitle>
                 </DialogHeader>
                 <div className="flex flex-col gap-2">
-                  {modalMode === 'add' && (
+                  {modalMode === 'add' && userRole !== 'faculty' && (
                     <div>
                       <Label htmlFor="faculty">Faculty</Label>
                       <Select value={modalFacultyId} onValueChange={setModalFacultyId}>
@@ -303,7 +329,7 @@ export default function FacultyAttendancePage() {
                   <Button type="button" variant="outline" size="sm" onClick={handleAddTimeSlot}>+ Add Time Slot</Button>
                 </div>
                 <DialogFooter>
-                  <Button onClick={handleModalSave} disabled={saving === openModal || (modalMode === 'add' && !modalFacultyId)}>
+                  <Button onClick={handleModalSave} disabled={saving === openModal || (modalMode === 'add' && userRole !== 'faculty' && !modalFacultyId)}>
                     {saving === openModal ? 'Saving...' : 'Save'}
                   </Button>
                 </DialogFooter>
