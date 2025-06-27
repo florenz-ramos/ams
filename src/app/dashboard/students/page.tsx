@@ -95,6 +95,19 @@ export default function StudentManagementPage() {
     setLoading(true);
     setError("");
     if (!organization) return;
+    // Check for existing applicant
+    const { data: existing } = await supabase
+      .from("organization_students")
+      .select("*")
+      .eq("organization_id", organization.id)
+      .eq("lastname", form.lastname)
+      .eq("firstname", form.firstname)
+      .eq("middlename", form.middlename);
+    if (existing && existing.length > 0) {
+      setLoading(false);
+      setError("Applicant already exists.");
+      return;
+    }
     // 1. Insert student
     const { data, error: studentError } = await supabase.from("organization_students").insert({
       ...form,

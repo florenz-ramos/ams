@@ -12,6 +12,17 @@ import { useOrganization } from '@/context/OrganizationContext';
 import { SiteHeader } from '@/components/site-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 
+type DocumentType = {
+  id: string;
+  organization_id: string;
+  name: string;
+  description?: string;
+  required: boolean;
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export default function OrganizationSettingsPage() {
   const supabase = useSupabase() as SupabaseClient;
   const router = useRouter();
@@ -27,9 +38,19 @@ export default function OrganizationSettingsPage() {
     applicant_no: { prefix: '', next_number: 1, format: '' },
     student_no: { prefix: '', next_number: 1, format: '' },
   });
-  const [numberingLoading, setNumberingLoading] = useState(false);
   const [numberingError, setNumberingError] = useState('');
   const [activeTab, setActiveTab] = useState('general');
+  const [applicantNoLoading, setApplicantNoLoading] = useState(false);
+  const [studentNoLoading, setStudentNoLoading] = useState(false);
+
+  // Documents state
+  const [docTypes, setDocTypes] = useState<DocumentType[]>([]);
+  const [docTypesLoading, setDocTypesLoading] = useState(false);
+  const [docTypeError, setDocTypeError] = useState("");
+  const [showAddDocType, setShowAddDocType] = useState(false);
+  const [newDocType, setNewDocType] = useState<Omit<DocumentType, 'id' | 'organization_id' | 'created_at' | 'updated_at'>>({ name: "", description: "", required: true, sort_order: 0 });
+  const [editingDocType, setEditingDocType] = useState<DocumentType | null>(null);
+  const [editDocTypeValues, setEditDocTypeValues] = useState<Omit<DocumentType, 'id' | 'organization_id' | 'created_at' | 'updated_at'>>({ name: "", description: "", required: true, sort_order: 0 });
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -51,7 +72,6 @@ export default function OrganizationSettingsPage() {
   // Fetch numbering settings
   useEffect(() => {
     if (!org) return;
-    setNumberingLoading(true);
     supabase
       .from('organization_numbering_settings')
       .select('*')
@@ -67,9 +87,25 @@ export default function OrganizationSettingsPage() {
           });
           setNumbering(n);
         }
-        setNumberingLoading(false);
       });
-  }, [supabase, org, numbering]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, org]);
+
+  // Fetch document types
+  useEffect(() => {
+    if (!org) return;
+    setDocTypesLoading(true);
+    supabase
+      .from("organization_document_types")
+      .select("*")
+      .eq("organization_id", org.id)
+      .order("sort_order", { ascending: true })
+      .then(({ data, error }) => {
+        setDocTypesLoading(false);
+        if (error) setDocTypeError(error.message);
+        else setDocTypes(data || []);
+      });
+  }, [supabase, org, showAddDocType, editingDocType]);
 
   const handleNumberingChange = (type: 'applicant_no' | 'student_no', field: string, value: string | number) => {
     setNumbering(n => ({
@@ -80,7 +116,8 @@ export default function OrganizationSettingsPage() {
 
   const handleNumberingSave = async (type: 'applicant_no' | 'student_no') => {
     if (!org) return;
-    setNumberingLoading(true);
+    if (type === 'applicant_no') setApplicantNoLoading(true);
+    if (type === 'student_no') setStudentNoLoading(true);
     setNumberingError('');
     const row = numbering[type];
     const { error } = await supabase.from('organization_numbering_settings').upsert({
@@ -91,7 +128,8 @@ export default function OrganizationSettingsPage() {
       format: row.format,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'organization_id,type' });
-    setNumberingLoading(false);
+    if (type === 'applicant_no') setApplicantNoLoading(false);
+    if (type === 'student_no') setStudentNoLoading(false);
     if (error) setNumberingError(error.message);
   };
 
@@ -113,6 +151,40 @@ export default function OrganizationSettingsPage() {
     }
   };
 
+  // Add document type
+  const handleAddDocType = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!org) return;
+    setDocTypeError("");
+    const { error } = await supabase.from("organization_document_types").insert({
+      organization_id: org.id,
+      ...newDocType,
+    });
+    if (error) setDocTypeError(error.message);
+    else setShowAddDocType(false);
+    setNewDocType({ name: "", description: "", required: true, sort_order: 0 });
+  };
+
+  // Edit document type
+  const handleEditDocType = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!org || !editingDocType) return;
+    setDocTypeError("");
+    const { error } = await supabase.from("organization_document_types").update({
+      ...editDocTypeValues,
+    }).eq("id", editingDocType.id);
+    if (error) setDocTypeError(error.message);
+    else setEditingDocType(null);
+  };
+
+  // Delete document type
+  const handleDeleteDocType = async (id: string) => {
+    if (!org) return;
+    setDocTypeError("");
+    const { error } = await supabase.from("organization_document_types").delete().eq("id", id);
+    if (error) setDocTypeError(error.message);
+  };
+
   return (
     <SidebarProvider
       style={{
@@ -124,13 +196,14 @@ export default function OrganizationSettingsPage() {
       <SidebarInset>
         <SiteHeader />
         <main className="flex flex-col items-center gap-8 p-8">
-          <Card className="w-full max-w-lg">
+          <Card className="w-full">
             <CardContent>
               <h1 className="text-2xl font-bold mb-4">Organization Settings</h1>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
                 <TabsList>
                   <TabsTrigger value="general">General</TabsTrigger>
                   <TabsTrigger value="numbering">Numbering</TabsTrigger>
+                  <TabsTrigger value="documents">Documents</TabsTrigger>
                 </TabsList>
                 <TabsContent value="general">
                   {/* Change Organization Name section */}
@@ -196,8 +269,8 @@ export default function OrganizationSettingsPage() {
                       placeholder="e.g. APP-{year}-{number:04d}"
                     />
                     <div className="text-xs text-muted-foreground mb-4">Format for the full application number. Use <code>{'{year}'}</code> for year and <code>{'{number:04d}'}</code> for zero-padded number.</div>
-                    <Button onClick={() => handleNumberingSave('applicant_no')} disabled={numberingLoading}>
-                      {numberingLoading ? 'Saving...' : 'Save'}
+                    <Button onClick={() => handleNumberingSave('applicant_no')} disabled={applicantNoLoading}>
+                      {applicantNoLoading ? 'Saving...' : 'Save'}
                     </Button>
                   </div>
                   <div className="mb-6">
@@ -227,11 +300,87 @@ export default function OrganizationSettingsPage() {
                       placeholder="e.g. STU-{year}-{number:04d}"
                     />
                     <div className="text-xs text-muted-foreground mb-4">Format for the full student number. Use <code>{'{year}'}</code> for year and <code>{'{number:04d}'}</code> for zero-padded number.</div>
-                    <Button onClick={() => handleNumberingSave('student_no')} disabled={numberingLoading}>
-                      {numberingLoading ? 'Saving...' : 'Save'}
+                    <Button onClick={() => handleNumberingSave('student_no')} disabled={studentNoLoading}>
+                      {studentNoLoading ? 'Saving...' : 'Save'}
                     </Button>
                   </div>
                   {numberingError && <div className="text-destructive text-sm mt-2">{numberingError}</div>}
+                </TabsContent>
+                <TabsContent value="documents">
+                  <div className="mb-6">
+                    <h2 className="text-lg font-semibold mb-2">Required/Accepted Documents</h2>
+                    <Button className="mb-4" onClick={() => setShowAddDocType(true)}>Add Document Type</Button>
+                    {docTypesLoading ? (
+                      <div>Loading...</div>
+                    ) : docTypes.length === 0 ? (
+                      <div className="text-muted-foreground mb-4">No document types configured yet.</div>
+                    ) : (
+                      <table className="w-full border mb-4">
+                        <thead>
+                          <tr>
+                            <th className="text-left p-2">Name</th>
+                            <th className="text-left p-2">Description</th>
+                            <th className="text-left p-2">Required</th>
+                            <th className="text-left p-2">Sort</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {docTypes.map(dt => (
+                            <tr key={dt.id}>
+                              <td className="p-2">{dt.name}</td>
+                              <td className="p-2">{dt.description}</td>
+                              <td className="p-2">{dt.required ? "Yes" : "No"}</td>
+                              <td className="p-2">{dt.sort_order}</td>
+                              <td className="p-2 flex gap-2">
+                                <Button size="sm" variant="outline" onClick={() => { setEditingDocType(dt); setEditDocTypeValues({ name: dt.name, description: dt.description, required: dt.required, sort_order: dt.sort_order }); }}>Edit</Button>
+                                <Button size="sm" variant="destructive" onClick={() => handleDeleteDocType(dt.id)}>Delete</Button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                    {docTypeError && <div className="text-destructive text-sm mb-2">{docTypeError}</div>}
+                    {/* Add Dialog */}
+                    <Dialog open={showAddDocType} onOpenChange={setShowAddDocType}>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Add Document Type</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={handleAddDocType} className="flex flex-col gap-4">
+                          <input className="border rounded p-2" placeholder="Name" value={newDocType.name} onChange={e => setNewDocType({ ...newDocType, name: e.target.value })} required />
+                          <input className="border rounded p-2" placeholder="Description" value={newDocType.description} onChange={e => setNewDocType({ ...newDocType, description: e.target.value })} />
+                          <label className="flex items-center gap-2">
+                            <input type="checkbox" checked={newDocType.required} onChange={e => setNewDocType({ ...newDocType, required: e.target.checked })} /> Required
+                          </label>
+                          <input className="border rounded p-2" type="number" placeholder="Sort Order" value={newDocType.sort_order} onChange={e => setNewDocType({ ...newDocType, sort_order: Number(e.target.value) })} />
+                          <DialogFooter>
+                            <Button type="submit">Add</Button>
+                          </DialogFooter>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                    {/* Edit Dialog */}
+                    <Dialog open={!!editingDocType} onOpenChange={v => { if (!v) setEditingDocType(null); }}>
+                      <DialogContent>
+                        <DialogHeader>
+                          <DialogTitle>Edit Document Type</DialogTitle>
+                        </DialogHeader>
+                        <form onSubmit={handleEditDocType} className="flex flex-col gap-4">
+                          <input className="border rounded p-2" placeholder="Name" value={editDocTypeValues.name} onChange={e => setEditDocTypeValues({ ...editDocTypeValues, name: e.target.value })} required />
+                          <input className="border rounded p-2" placeholder="Description" value={editDocTypeValues.description} onChange={e => setEditDocTypeValues({ ...editDocTypeValues, description: e.target.value })} />
+                          <label className="flex items-center gap-2">
+                            <input type="checkbox" checked={editDocTypeValues.required} onChange={e => setEditDocTypeValues({ ...editDocTypeValues, required: e.target.checked })} /> Required
+                          </label>
+                          <input className="border rounded p-2" type="number" placeholder="Sort Order" value={editDocTypeValues.sort_order} onChange={e => setEditDocTypeValues({ ...editDocTypeValues, sort_order: Number(e.target.value) })} />
+                          <DialogFooter>
+                            <Button type="submit">Save</Button>
+                          </DialogFooter>
+                        </form>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
                 </TabsContent>
               </Tabs>
             </CardContent>

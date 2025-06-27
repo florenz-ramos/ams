@@ -7,6 +7,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { X, Pencil, Check } from "lucide-react";
 
+type DocumentType = {
+  id: string;
+  organization_id: string;
+  name: string;
+  description?: string;
+  required: boolean;
+  sort_order: number;
+  created_at?: string;
+  updated_at?: string;
+};
+
 export default function AdmissionDocuments({ selectedApplicant }: { selectedApplicant: Record<string, unknown> }) {
   const supabase = useSupabase() as SupabaseClient;
   const [documents, setDocuments] = useState<Record<string, unknown>[]>([]);
@@ -18,6 +29,8 @@ export default function AdmissionDocuments({ selectedApplicant }: { selectedAppl
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [editingRemarks, setEditingRemarks] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [docTypes, setDocTypes] = useState<DocumentType[]>([]);
+  const [docTypesLoading, setDocTypesLoading] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -35,6 +48,26 @@ export default function AdmissionDocuments({ selectedApplicant }: { selectedAppl
       setDocuments(data || []);
     };
     fetchDocuments();
+  }, [selectedApplicant, supabase]);
+
+  // Fetch document types for the applicant's organization
+  useEffect(() => {
+    async function fetchDocTypes() {
+      if (!selectedApplicant?.organization_id) {
+        setDocTypes([]);
+        return;
+      }
+      setDocTypesLoading(true);
+      const { data, error } = await supabase
+        .from("organization_document_types")
+        .select("*")
+        .eq("organization_id", selectedApplicant.organization_id)
+        .order("sort_order", { ascending: true });
+      setDocTypesLoading(false);
+      if (error) setDocTypes([]);
+      else setDocTypes(data || []);
+    }
+    fetchDocTypes();
   }, [selectedApplicant, supabase]);
 
   async function handleAddDocument(e: React.FormEvent) {
@@ -204,13 +237,18 @@ export default function AdmissionDocuments({ selectedApplicant }: { selectedAppl
           <form onSubmit={handleAddDocument} className="flex flex-col gap-4">
             <Select value={newDocType} onValueChange={setNewDocType} required>
               <SelectTrigger>
-                <SelectValue placeholder="Select document type" />
+                <SelectValue placeholder={docTypesLoading ? "Loading..." : "Select document type"} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Transcript of Records">Transcript of Records</SelectItem>
-                <SelectItem value="Birth Certificate">Birth Certificate</SelectItem>
-                <SelectItem value="Good Moral">Good Moral</SelectItem>
-                <SelectItem value="Form 137">Form 137</SelectItem>
+                {docTypesLoading ? (
+                  <div className="p-2 text-sm">Loading...</div>
+                ) : docTypes.length === 0 ? (
+                  <div className="p-2 text-sm">No document types configured.</div>
+                ) : (
+                  docTypes.map(dt => (
+                    <SelectItem key={dt.id} value={dt.name}>{dt.name}</SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
             <input
