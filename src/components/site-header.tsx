@@ -16,7 +16,6 @@ import { useOrganization, Organization } from '@/context/OrganizationContext';
 export function SiteHeader({ onOrgChange }: { onOrgChange?: (org: Organization) => void }) {
   const supabase = useSupabase() as SupabaseClient;
   const [organizations, setOrganizations] = useState<Organization[]>([]);
-  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
   const { organization, setOrganization } = useOrganization();
   const [userId, setUserId] = useState<string | null>(null);
   const [showNewOrg, setShowNewOrg] = useState(false);
@@ -59,25 +58,12 @@ export function SiteHeader({ onOrgChange }: { onOrgChange?: (org: Organization) 
         );
 
         setOrganizations(allOrgs);
-        if (!selectedOrg && allOrgs.length > 0) {
-          setSelectedOrg(allOrgs[0]);
-          onOrgChange?.(allOrgs[0]);
-        }
       };
       fetchData();
     }
-    // eslint-disable-next-line
   }, [supabase]);
 
-  useEffect(() => {
-    // Keep local selectedOrg in sync with context
-    if (organization && organization.id !== selectedOrg?.id) {
-      setSelectedOrg(organization);
-    }
-  }, [organization, selectedOrg?.id]);
-
   const handleSelectOrg = (org: Organization) => {
-    setSelectedOrg(org);
     setOrganization(org);
     onOrgChange?.(org);
   };
@@ -119,7 +105,7 @@ export function SiteHeader({ onOrgChange }: { onOrgChange?: (org: Organization) 
         }
       ]);
       setOrganizations([...organizations, org]);
-      setSelectedOrg(org);
+      setOrganization(org);
       onOrgChange?.(org);
       setShowNewOrg(false);
       setNewOrgName('');
@@ -144,9 +130,9 @@ export function SiteHeader({ onOrgChange }: { onOrgChange?: (org: Organization) 
                 <Button
                   variant="ghost"
                   className="text-base font-semibold px-3 truncate max-w-xs sm:max-w-sm md:max-w-md"
-                  title={selectedOrg ? selectedOrg.name : 'Select organization'}
+                  title={organization ? organization.name : 'Select organization'}
                 >
-                  {selectedOrg ? selectedOrg.name : 'Select organization'}
+                  {organization ? organization.name : 'Select organization'}
                 </Button>
               </div>
             </DropdownMenuTrigger>
@@ -155,7 +141,7 @@ export function SiteHeader({ onOrgChange }: { onOrgChange?: (org: Organization) 
                 <DropdownMenuItem
                   key={org.id}
                   onClick={() => handleSelectOrg(org)}
-                  className={selectedOrg?.id === org.id ? 'font-bold' : ''}
+                  className={organization?.id === org.id ? 'font-bold' : ''}
                 >
                   {org.name}
                 </DropdownMenuItem>

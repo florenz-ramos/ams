@@ -18,7 +18,9 @@ type DocumentType = {
   updated_at?: string;
 };
 
-export default function AdmissionDocuments({ selectedApplicant }: { selectedApplicant: Record<string, unknown> }) {
+type Document = { status: string; [key: string]: unknown };
+
+export default function AdmissionDocuments({ selectedApplicant, onApprovalStatusChange }: { selectedApplicant: Record<string, unknown>, onApprovalStatusChange: (approved: boolean) => void }) {
   const supabase = useSupabase() as SupabaseClient;
   const [documents, setDocuments] = useState<Record<string, unknown>[]>([]);
   const [showAddDoc, setShowAddDoc] = useState(false);
@@ -37,6 +39,7 @@ export default function AdmissionDocuments({ selectedApplicant }: { selectedAppl
   useEffect(() => {
     if (!selectedApplicant) {
       setDocuments([]);
+      onApprovalStatusChange(false);
       return;
     }
     const fetchDocuments = async () => {
@@ -46,9 +49,10 @@ export default function AdmissionDocuments({ selectedApplicant }: { selectedAppl
         .eq("applicant_id", selectedApplicant.id)
         .order("submitted_at", { ascending: false });
       setDocuments(data || []);
+      onApprovalStatusChange((documents as Document[] || []).some((doc: Document) => doc.status === 'approved'));
     };
     fetchDocuments();
-  }, [selectedApplicant, supabase]);
+  }, [selectedApplicant, supabase, onApprovalStatusChange, documents]);
 
   // Fetch document types for the applicant's organization
   useEffect(() => {
@@ -95,6 +99,7 @@ export default function AdmissionDocuments({ selectedApplicant }: { selectedAppl
       .eq("applicant_id", selectedApplicant.id)
       .order("submitted_at", { ascending: false });
     setDocuments(data || []);
+    onApprovalStatusChange((documents as Document[] || []).some((doc: Document) => doc.status === 'approved'));
   }
 
   async function handleUpdateRemarks(docId: string) {
@@ -106,6 +111,7 @@ export default function AdmissionDocuments({ selectedApplicant }: { selectedAppl
       setDocuments(docs => docs.map(d => d.id === docId ? { ...d, remarks: editingRemarks } : d));
       setEditingDocId(null);
       setEditingRemarks("");
+      onApprovalStatusChange((documents as Document[] || []).some((doc: Document) => doc.status === 'approved'));
     }
   }
 
@@ -116,6 +122,7 @@ export default function AdmissionDocuments({ selectedApplicant }: { selectedAppl
       .eq("id", docId);
     if (!error) {
       setDocuments(docs => docs.filter(d => d.id !== docId));
+      onApprovalStatusChange((documents as Document[] || []).some((doc: Document) => doc.status === 'approved'));
     }
   }
 
@@ -126,6 +133,7 @@ export default function AdmissionDocuments({ selectedApplicant }: { selectedAppl
       .eq("id", docId);
     if (!error) {
       setDocuments(docs => docs.map(d => d.id === docId ? { ...d, status: "approved" } : d));
+      onApprovalStatusChange((documents as Document[] || []).some((doc: Document) => doc.status === 'approved'));
     }
   }
 
@@ -141,6 +149,7 @@ export default function AdmissionDocuments({ selectedApplicant }: { selectedAppl
       .eq("applicant_id", selectedApplicant.id)
       .order("submitted_at", { ascending: false });
     setDocuments(data || []);
+    onApprovalStatusChange((documents as Document[] || []).some((doc: Document) => doc.status === 'approved'));
   }
 
   async function handleApproveAllWithWaiver() {
@@ -161,6 +170,7 @@ export default function AdmissionDocuments({ selectedApplicant }: { selectedAppl
       .eq("applicant_id", selectedApplicant.id)
       .order("submitted_at", { ascending: false });
     setDocuments(data || []);
+    onApprovalStatusChange((documents as Document[] || []).some((doc: Document) => doc.status === 'approved'));
   }
 
   return (

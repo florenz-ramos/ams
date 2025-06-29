@@ -7,6 +7,7 @@ import { useMemo, useEffect, useState } from 'react';
 import { ThemeProvider } from 'next-themes';
 import { SupabaseContext } from '@/hooks/use-supabase';
 import { OrganizationProvider } from '@/context/OrganizationContext';
+import { ThemeProvider as CustomThemeProvider } from '@/context/ThemeContext';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -37,7 +38,9 @@ export default function RootLayout({
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem >
           <SupabaseContext.Provider value={supabase}>
             <OrganizationProvider>
-              {mounted ? children : null}
+              <CustomThemeProvider>
+                {mounted ? children : null}
+              </CustomThemeProvider>
             </OrganizationProvider>
           </SupabaseContext.Provider>
         </ThemeProvider>

@@ -4,3 +4,4 @@ globs:
 alwaysApply: false
 ---
 - DONT USE "ANY" to avoid building error
+- REMOVE any unsued code to avoid building error

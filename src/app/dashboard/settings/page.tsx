@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { useSupabase } from '@/hooks/use-supabase';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
@@ -11,6 +10,8 @@ import { AppSidebar } from '@/components/app-sidebar';
 import { useOrganization } from '@/context/OrganizationContext';
 import { SiteHeader } from '@/components/site-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { useTheme } from '@/context/ThemeContext';
+import { ThemeButton } from '@/components/ui/theme-button';
 
 type DocumentType = {
   id: string;
@@ -23,10 +24,18 @@ type DocumentType = {
   updated_at?: string;
 };
 
+type OrganizationTheme = {
+  primary_color: string;
+  secondary_color: string;
+  accent_color: string;
+  text_color: string;
+};
+
 export default function OrganizationSettingsPage() {
   const supabase = useSupabase() as SupabaseClient;
   const router = useRouter();
   const { organization: org, setOrganization } = useOrganization();
+  const { theme: currentTheme, refreshTheme } = useTheme();
   const [showDelete, setShowDelete] = useState(false);
   const [deleteInput, setDeleteInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -42,6 +51,11 @@ export default function OrganizationSettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
   const [applicantNoLoading, setApplicantNoLoading] = useState(false);
   const [studentNoLoading, setStudentNoLoading] = useState(false);
+
+  // Theme settings state
+  const [theme, setTheme] = useState<OrganizationTheme>(currentTheme);
+  const [themeLoading, setThemeLoading] = useState(false);
+  const [themeError, setThemeError] = useState('');
 
   // Documents state
   const [docTypes, setDocTypes] = useState<DocumentType[]>([]);
@@ -106,6 +120,28 @@ export default function OrganizationSettingsPage() {
         else setDocTypes(data || []);
       });
   }, [supabase, org, showAddDocType, editingDocType]);
+
+  // Fetch theme settings
+  useEffect(() => {
+    if (!org) return;
+    supabase
+      .from('organization_themes')
+      .select('primary_color, secondary_color, accent_color, text_color')
+      .eq('organization_id', org.id)
+      .single()
+      .then(({ data, error }) => {
+        if (error && error.code !== 'PGRST116') {
+          setThemeError(error.message);
+        } else if (data) {
+          setTheme(data as OrganizationTheme);
+        }
+      });
+  }, [supabase, org]);
+
+  // Update local theme when context theme changes
+  useEffect(() => {
+    setTheme(currentTheme);
+  }, [currentTheme]);
 
   const handleNumberingChange = (type: 'applicant_no' | 'student_no', field: string, value: string | number) => {
     setNumbering(n => ({
@@ -185,6 +221,29 @@ export default function OrganizationSettingsPage() {
     if (error) setDocTypeError(error.message);
   };
 
+  const handleThemeChange = (field: keyof OrganizationTheme, value: string) => {
+    setTheme(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleThemeSave = async () => {
+    if (!org) return;
+    setThemeLoading(true);
+    setThemeError('');
+    const { error } = await supabase
+      .from('organization_themes')
+      .upsert({
+        organization_id: org.id,
+        ...theme,
+      });
+    setThemeLoading(false);
+    if (error) {
+      setThemeError(error.message);
+    } else {
+      // Refresh the theme context to apply changes
+      await refreshTheme();
+    }
+  };
+
   return (
     <SidebarProvider
       style={{
@@ -203,6 +262,7 @@ export default function OrganizationSettingsPage() {
                 <TabsList>
                   <TabsTrigger value="general">General</TabsTrigger>
                   <TabsTrigger value="numbering">Numbering</TabsTrigger>
+                  <TabsTrigger value="theme">Theme</TabsTrigger>
                   <TabsTrigger value="documents">Documents</TabsTrigger>
                 </TabsList>
                 <TabsContent value="general">
@@ -215,7 +275,7 @@ export default function OrganizationSettingsPage() {
                       onChange={e => setOrganization(org ? { ...org, name: e.target.value } : org)}
                       disabled={!org}
                     />
-                    <Button
+                    <ThemeButton
                       onClick={async () => {
                         if (!org) return;
                         setLoading(true);
@@ -228,17 +288,18 @@ export default function OrganizationSettingsPage() {
                         if (error) setError(error.message);
                       }}
                       disabled={!org || loading}
+                      variant="primary"
                     >
                       {loading ? 'Saving...' : 'Save'}
-                    </Button>
+                    </ThemeButton>
                     {error && <div className="text-destructive text-sm mt-2">{error}</div>}
                   </div>
                   <div className="mt-8 border-t pt-6">
                     <h2 className="text-lg font-semibold mb-2 text-destructive">Delete Organization</h2>
                     <p className="mb-2 text-sm">This action cannot be undone. To confirm, type the organization name below and click Delete.</p>
-                    <Button variant="destructive" onClick={() => setShowDelete(true)}>
+                    <ThemeButton variant="destructive" onClick={() => setShowDelete(true)}>
                       Delete Organization
-                    </Button>
+                    </ThemeButton>
                   </div>
                 </TabsContent>
                 <TabsContent value="numbering">
@@ -269,9 +330,9 @@ export default function OrganizationSettingsPage() {
                       placeholder="e.g. APP-{year}-{number:04d}"
                     />
                     <div className="text-xs text-muted-foreground mb-4">Format for the full application number. Use <code>{'{year}'}</code> for year and <code>{'{number:04d}'}</code> for zero-padded number.</div>
-                    <Button onClick={() => handleNumberingSave('applicant_no')} disabled={applicantNoLoading}>
+                    <ThemeButton onClick={() => handleNumberingSave('applicant_no')} disabled={applicantNoLoading} variant="primary">
                       {applicantNoLoading ? 'Saving...' : 'Save'}
-                    </Button>
+                    </ThemeButton>
                   </div>
                   <div className="mb-6">
                     <h2 className="text-lg font-semibold mb-2">Student Number Settings</h2>
@@ -300,16 +361,120 @@ export default function OrganizationSettingsPage() {
                       placeholder="e.g. STU-{year}-{number:04d}"
                     />
                     <div className="text-xs text-muted-foreground mb-4">Format for the full student number. Use <code>{'{year}'}</code> for year and <code>{'{number:04d}'}</code> for zero-padded number.</div>
-                    <Button onClick={() => handleNumberingSave('student_no')} disabled={studentNoLoading}>
+                    <ThemeButton onClick={() => handleNumberingSave('student_no')} disabled={studentNoLoading} variant="primary">
                       {studentNoLoading ? 'Saving...' : 'Save'}
-                    </Button>
+                    </ThemeButton>
                   </div>
                   {numberingError && <div className="text-destructive text-sm mt-2">{numberingError}</div>}
+                </TabsContent>
+                <TabsContent value="theme">
+                  <div className="mb-6">
+                    <h2 className="text-lg font-semibold mb-4">Organization Theme</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block mb-2 font-medium">Primary Color</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="color"
+                            value={theme.primary_color}
+                            onChange={e => handleThemeChange('primary_color', e.target.value)}
+                            className="w-12 h-10 border rounded"
+                          />
+                          <input
+                            type="text"
+                            value={theme.primary_color}
+                            onChange={e => handleThemeChange('primary_color', e.target.value)}
+                            className="flex-1 border rounded p-2"
+                            placeholder="#3b82f6"
+                          />
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">Used for buttons and primary actions</div>
+                      </div>
+                      <div>
+                        <label className="block mb-2 font-medium">Secondary Color</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="color"
+                            value={theme.secondary_color}
+                            onChange={e => handleThemeChange('secondary_color', e.target.value)}
+                            className="w-12 h-10 border rounded"
+                          />
+                          <input
+                            type="text"
+                            value={theme.secondary_color}
+                            onChange={e => handleThemeChange('secondary_color', e.target.value)}
+                            className="flex-1 border rounded p-2"
+                            placeholder="#64748b"
+                          />
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">Used for borders and secondary elements</div>
+                      </div>
+                      <div>
+                        <label className="block mb-2 font-medium">Accent Color</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="color"
+                            value={theme.accent_color}
+                            onChange={e => handleThemeChange('accent_color', e.target.value)}
+                            className="w-12 h-10 border rounded"
+                          />
+                          <input
+                            type="text"
+                            value={theme.accent_color}
+                            onChange={e => handleThemeChange('accent_color', e.target.value)}
+                            className="flex-1 border rounded p-2"
+                            placeholder="#f59e0b"
+                          />
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">Used for success messages and highlights</div>
+                      </div>
+                      <div>
+                        <label className="block mb-2 font-medium">Text Color</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="color"
+                            value={theme.text_color}
+                            onChange={e => handleThemeChange('text_color', e.target.value)}
+                            className="w-12 h-10 border rounded"
+                          />
+                          <input
+                            type="text"
+                            value={theme.text_color}
+                            onChange={e => handleThemeChange('text_color', e.target.value)}
+                            className="flex-1 border rounded p-2"
+                            placeholder="#1f2937"
+                          />
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">Used for labels and text content</div>
+                      </div>
+                    </div>
+                    <div className="mt-6">
+                      <ThemeButton onClick={handleThemeSave} disabled={themeLoading} variant="primary">
+                        {themeLoading ? 'Saving...' : 'Save Theme'}
+                      </ThemeButton>
+                      {themeError && <div className="text-destructive text-sm mt-2">{themeError}</div>}
+                    </div>
+                    <div className="mt-6 p-4 border rounded bg-muted">
+                      <h3 className="font-medium mb-2">Preview</h3>
+                      <div className="space-y-2">
+                        <button 
+                          className="px-4 py-2 rounded text-white"
+                          style={{ backgroundColor: theme.primary_color }}
+                        >
+                          Primary Button
+                        </button>
+                        <div className="p-2 border rounded" style={{ borderColor: theme.secondary_color }}>
+                          <span style={{ color: theme.text_color }}>Sample text with custom colors</span>
+                        </div>
+                        <div style={{ color: theme.accent_color }}>Success message preview</div>
+                      </div>
+                    </div>
+                  </div>
                 </TabsContent>
                 <TabsContent value="documents">
                   <div className="mb-6">
                     <h2 className="text-lg font-semibold mb-2">Required/Accepted Documents</h2>
-                    <Button className="mb-4" onClick={() => setShowAddDocType(true)}>Add Document Type</Button>
+                    <ThemeButton className="mb-4" onClick={() => setShowAddDocType(true)} variant="primary">Add Document Type</ThemeButton>
                     {docTypesLoading ? (
                       <div>Loading...</div>
                     ) : docTypes.length === 0 ? (
@@ -333,8 +498,8 @@ export default function OrganizationSettingsPage() {
                               <td className="p-2">{dt.required ? "Yes" : "No"}</td>
                               <td className="p-2">{dt.sort_order}</td>
                               <td className="p-2 flex gap-2">
-                                <Button size="sm" variant="outline" onClick={() => { setEditingDocType(dt); setEditDocTypeValues({ name: dt.name, description: dt.description, required: dt.required, sort_order: dt.sort_order }); }}>Edit</Button>
-                                <Button size="sm" variant="destructive" onClick={() => handleDeleteDocType(dt.id)}>Delete</Button>
+                                <ThemeButton size="sm" variant="outline" onClick={() => { setEditingDocType(dt); setEditDocTypeValues({ name: dt.name, description: dt.description, required: dt.required, sort_order: dt.sort_order }); }}>Edit</ThemeButton>
+                                <ThemeButton size="sm" variant="destructive" onClick={() => handleDeleteDocType(dt.id)}>Delete</ThemeButton>
                               </td>
                             </tr>
                           ))}
@@ -356,7 +521,7 @@ export default function OrganizationSettingsPage() {
                           </label>
                           <input className="border rounded p-2" type="number" placeholder="Sort Order" value={newDocType.sort_order} onChange={e => setNewDocType({ ...newDocType, sort_order: Number(e.target.value) })} />
                           <DialogFooter>
-                            <Button type="submit">Add</Button>
+                            <ThemeButton type="submit" variant="primary">Add</ThemeButton>
                           </DialogFooter>
                         </form>
                       </DialogContent>
@@ -375,7 +540,7 @@ export default function OrganizationSettingsPage() {
                           </label>
                           <input className="border rounded p-2" type="number" placeholder="Sort Order" value={editDocTypeValues.sort_order} onChange={e => setEditDocTypeValues({ ...editDocTypeValues, sort_order: Number(e.target.value) })} />
                           <DialogFooter>
-                            <Button type="submit">Save</Button>
+                            <ThemeButton type="submit" variant="primary">Save</ThemeButton>
                           </DialogFooter>
                         </form>
                       </DialogContent>
@@ -399,13 +564,13 @@ export default function OrganizationSettingsPage() {
               />
               {error && <div className="text-destructive text-sm mb-2">{error}</div>}
               <DialogFooter>
-                <Button
+                <ThemeButton
                   variant="destructive"
                   disabled={deleteInput !== org?.name || loading}
                   onClick={handleDelete}
                 >
                   {loading ? 'Deleting...' : 'Delete'}
-                </Button>
+                </ThemeButton>
               </DialogFooter>
             </DialogContent>
           </Dialog>

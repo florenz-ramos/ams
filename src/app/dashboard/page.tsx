@@ -17,7 +17,7 @@ import { ChevronsUpDown, Check } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { getTemplate } from '@/lib/actions';
-import { Organization } from '@/context/OrganizationContext';
+import { useOrganization, Organization } from '@/context/OrganizationContext';
 
 type Project = { id: string; name: string; description?: string };
 type Template = {
@@ -32,7 +32,7 @@ type Template = {
 
 export default function DashboardPage() {
   const supabase = useSupabase() as SupabaseClient;
-  const [selectedOrg, setSelectedOrg] = useState<Organization | null>(null);
+  const { organization, setOrganization } = useOrganization();
   const [projects, setProjects] = useState<Project[]>([]);
   const [showNewProject, setShowNewProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -51,50 +51,28 @@ export default function DashboardPage() {
     const fetchOrgs = async () => {
       const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null;
       if (user) {
-        // Fetch orgs where user is owner
-        const { data: ownedOrgs } = await supabase
-          .from('organizations')
-          .select('*')
-          .eq('owner', user.id);
-        // Fetch orgs where user is a member
-        const { data: memberLinks } = await supabase
-          .from('organization_team_members')
-          .select('organization_id')
-          .eq('user_id', user.id);
-        const memberOrgIds = (memberLinks || []).map(m => m.organization_id);
-        let memberOrgs = [];
-        if (memberOrgIds.length > 0) {
-          const { data } = await supabase
-            .from('organizations')
-            .select('*')
-            .in('id', memberOrgIds);
-          memberOrgs = data || [];
-        }
-        const allOrgs = [...(ownedOrgs || []), ...memberOrgs];
-        if (!selectedOrg && allOrgs.length > 0) {
-          setSelectedOrg(allOrgs[0]);
-        }
-        // Optionally, set allOrgs in state if you want to show a list
+        // No more auto-setting selectedOrg here
+        // Only set it if the user selects a new org
       }
     };
     fetchOrgs();
-  }, [supabase, selectedOrg]);
+  }, [supabase, organization]);
 
   // Fetch projects for selected org
   useEffect(() => {
-    if (!selectedOrg) return;
+    if (!organization) return;
     const fetchProjects = async () => {
       const { data, error } = await supabase
         .from('projects')
         .select('*')
-        .eq('organization_id', selectedOrg.id);
+        .eq('organization_id', organization.id);
       if (!error) setProjects(data || []);
     };
     fetchProjects();
-  }, [supabase, selectedOrg]);
+  }, [supabase, organization]);
 
   useEffect(() => {
-    if (!selectedOrg) return;
+    if (!organization) return;
     const fetchRole = async () => {
       const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null;
       if (user && user.id) {
@@ -102,13 +80,13 @@ export default function DashboardPage() {
           .from('organization_team_members')
           .select('role')
           .eq('user_id', user.id)
-          .eq('organization_id', selectedOrg.id)
+          .eq('organization_id', organization.id)
           .single();
         setUserRole(member?.role || '');
       }
     };
     fetchRole();
-  }, [supabase, selectedOrg]);
+  }, [supabase, organization]);
 
   // Fetch available templates
   useEffect(() => {
@@ -134,7 +112,7 @@ export default function DashboardPage() {
   }, [supabase, projectType]);
 
   const handleOrgChange = (org: Organization) => {
-    setSelectedOrg(org);
+    setOrganization(org);
     setProjects([]);
   };
 
@@ -168,7 +146,7 @@ export default function DashboardPage() {
     e.preventDefault();
     setLoading(true);
     setError('');
-    if (!selectedOrg) {
+    if (!organization) {
       setError('No organization selected.');
       setLoading(false);
       return;
@@ -179,7 +157,7 @@ export default function DashboardPage() {
         {
           name: newProjectName,
           description: newProjectDescription,
-          organization_id: selectedOrg.id,
+          organization_id: organization.id,
           type: projectType,
           user_targets: template?.user_targets || [],
           requirements: template?.requirements || [],
@@ -209,20 +187,20 @@ export default function DashboardPage() {
         '--header-height': 'calc(var(--spacing) * 12)',
       } as React.CSSProperties}
     >
-      {selectedOrg && (
-        <AppSidebar orgId={selectedOrg?.id || ''} />
+      {organization && (
+        <AppSidebar orgId={organization?.id || ''} />
       )}
       <SidebarInset>
         <SiteHeader onOrgChange={handleOrgChange} />
         <main className="flex flex-col items-center gap-8 p-8">
-          {!selectedOrg ? (
+          {!organization ? (
             <div className="w-full max-w-lg text-center text-muted-foreground">
               No organization found. Please create an organization to get started.
             </div>
           ) : (
             <div className="w-full">
               <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">Projects in {selectedOrg.name}</h2>
+                <h2 className="text-xl font-semibold">Projects in {organization.name}</h2>
                 <div className="flex gap-2">
                   <ToggleGroup type="single" value={view} onValueChange={v => v && setView(v as 'grid' | 'table')}>
                     <ToggleGroupItem value="grid" aria-label="Grid view">
