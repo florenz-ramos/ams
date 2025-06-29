@@ -140,7 +140,7 @@ export default function AdmissionAssignment({ selectedApplicant, orgId, onApplic
       }}
       className="flex flex-col gap-4 max-w-lg mt-4"
     >
-      <label className="font-medium" style={{ color: theme.text_color }}>Assign College/Campus</label>
+      <label className="font-medium theme-text">Assign College/Campus</label>
       <Select value={selectedCollegeId} onValueChange={setSelectedCollegeId} required>
         <SelectTrigger className="w-full" style={{ borderColor: theme.secondary_color }}>
           <SelectValue placeholder="Select a college/campus" />
@@ -157,7 +157,7 @@ export default function AdmissionAssignment({ selectedApplicant, orgId, onApplic
       </Select>
       {selectedCollegeId && (
         <>
-          <label className="font-medium" style={{ color: theme.text_color }}>Assign Program</label>
+          <label className="font-medium theme-text">Assign Program</label>
           <Select value={selectedProgramId} onValueChange={setSelectedProgramId} required>
             <SelectTrigger className="w-full" style={{ borderColor: theme.secondary_color }}>
               <SelectValue placeholder="Select a program" />
@@ -201,10 +201,10 @@ export default function AdmissionAssignment({ selectedApplicant, orgId, onApplic
       </ThemeButton>
       {assignMessage && <div className="text-sm" style={{ color: theme.accent_color }}>{assignMessage}</div>}
       {Boolean(selectedCollegeId) && (
-        <div className="mt-2 text-sm" style={{ color: theme.text_color }}>Currently assigned: <b>{assignedCollege || 'Unknown'}</b></div>
+        <div className="mt-2 text-sm theme-text">Currently assigned: <b>{assignedCollege || 'Unknown'}</b></div>
       )}
       {Boolean(selectedProgramId) && (
-        <div className="mt-2 text-sm" style={{ color: theme.text_color }}>
+        <div className="mt-2 text-sm theme-text">
           Currently assigned: <b>{filteredPrograms.find(p => p.id === selectedProgramId)?.name || assignedProgram?.name || 'Unknown'}</b>
         </div>
       )}

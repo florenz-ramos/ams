@@ -28,7 +28,6 @@ type OrganizationTheme = {
   primary_color: string;
   secondary_color: string;
   accent_color: string;
-  text_color: string;
 };
 
 export default function OrganizationSettingsPage() {
@@ -126,7 +125,7 @@ export default function OrganizationSettingsPage() {
     if (!org) return;
     supabase
       .from('organization_themes')
-      .select('primary_color, secondary_color, accent_color, text_color')
+      .select('primary_color, secondary_color, accent_color')
       .eq('organization_id', org.id)
       .single()
       .then(({ data, error }) => {
@@ -428,25 +427,6 @@ export default function OrganizationSettingsPage() {
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">Used for success messages and highlights</div>
                       </div>
-                      <div>
-                        <label className="block mb-2 font-medium">Text Color</label>
-                        <div className="flex gap-2">
-                          <input
-                            type="color"
-                            value={theme.text_color}
-                            onChange={e => handleThemeChange('text_color', e.target.value)}
-                            className="w-12 h-10 border rounded"
-                          />
-                          <input
-                            type="text"
-                            value={theme.text_color}
-                            onChange={e => handleThemeChange('text_color', e.target.value)}
-                            className="flex-1 border rounded p-2"
-                            placeholder="#1f2937"
-                          />
-                        </div>
-                        <div className="text-xs text-muted-foreground mt-1">Used for labels and text content</div>
-                      </div>
                     </div>
                     <div className="mt-6">
                       <ThemeButton onClick={handleThemeSave} disabled={themeLoading} variant="primary">
@@ -464,7 +444,7 @@ export default function OrganizationSettingsPage() {
                           Primary Button
                         </button>
                         <div className="p-2 border rounded" style={{ borderColor: theme.secondary_color }}>
-                          <span style={{ color: theme.text_color }}>Sample text with custom colors</span>
+                          <span className="theme-text">Sample text with custom colors</span>
                         </div>
                         <div style={{ color: theme.accent_color }}>Success message preview</div>
                       </div>

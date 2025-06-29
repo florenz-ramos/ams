@@ -8,7 +8,7 @@ type OrganizationTheme = {
   primary_color: string;
   secondary_color: string;
   accent_color: string;
-  text_color: string;
+  text_color?: string;
 };
 
 type ThemeContextType = {
@@ -22,7 +22,6 @@ const defaultTheme: OrganizationTheme = {
   primary_color: "#800020",
   secondary_color: "#D4AF37", 
   accent_color: "#FFD700",
-  text_color: "#1f2937"
 };
 
 const ThemeContext = createContext<ThemeContextType>({
@@ -65,7 +64,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
       console.log('Fetching theme for organization:', organization.id);
       const { data, error: fetchError } = await supabase
         .from('organization_themes')
-        .select('primary_color, secondary_color, accent_color, text_color')
+        .select('primary_color, secondary_color, accent_color')
         .eq('organization_id', organization.id)
         .single();
 
@@ -75,7 +74,11 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         setTheme(defaultTheme);
       } else if (data) {
         console.log('Theme fetched successfully:', data);
-        setTheme(data as OrganizationTheme);
+        setTheme({
+          primary_color: data.primary_color,
+          secondary_color: data.secondary_color,
+          accent_color: data.accent_color,
+        });
       } else {
         console.log('No theme found, using default theme');
         setTheme(defaultTheme);
@@ -100,7 +103,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     root.style.setProperty('--theme-primary', theme.primary_color);
     root.style.setProperty('--theme-secondary', theme.secondary_color);
     root.style.setProperty('--theme-accent', theme.accent_color);
-    root.style.setProperty('--theme-text', theme.text_color);
   }, [theme]);
 
   return (
