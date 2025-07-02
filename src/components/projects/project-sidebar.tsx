@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { IconArrowLeft, IconSettings, IconLayoutDashboard, IconUserCheck, IconUsers, IconBell, IconFileText, IconChartBar } from '@tabler/icons-react';
-import { NavUser } from '@/components/nav-user';
+import { NavUser } from '@/components/org/nav-user';
 import { useEffect, useState } from 'react';
 import { useSupabase } from '@/hooks/use-supabase';
 import { SupabaseClient } from '@supabase/supabase-js';

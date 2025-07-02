@@ -1,13 +1,14 @@
 'use client';
-import { useEffect, useState } from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { useSupabase } from '@/hooks/use-supabase';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { SiteHeader } from '@/components/site-header';
+import { SiteHeader } from '@/components/org/site-header';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/app-sidebar';
+import { AppSidebar } from '@/components/org/app-sidebar';
 import Link from 'next/link';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -18,8 +19,10 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { getTemplate } from '@/lib/actions';
 import { useOrganization, Organization } from '@/context/OrganizationContext';
+import { cssProperties } from '@/lib/constants';
 
 type Project = { id: string; name: string; description?: string };
+
 type Template = {
   id: string;
   name: string;
@@ -95,7 +98,7 @@ export default function DashboardPage() {
         .from('templates')
         .select('name, type')
         .order('type');
-      
+
       if (!error && data) {
         const templates = data.map(t => ({
           value: t.name,
@@ -175,21 +178,10 @@ export default function DashboardPage() {
     }
   };
 
-  // Debug: log template whenever it changes
-  useEffect(() => {
-    console.log('TEMPLATE DEBUG', template);
-  }, [template]);
 
   return (
-    <SidebarProvider
-      style={{
-        '--sidebar-width': 'calc(var(--spacing) * 72)',
-        '--header-height': 'calc(var(--spacing) * 12)',
-      } as React.CSSProperties}
-    >
-      {organization && (
-        <AppSidebar orgId={organization?.id || ''} />
-      )}
+    <SidebarProvider style={cssProperties}>
+      <AppSidebar orgId={organization?.id || ''} />
       <SidebarInset>
         <SiteHeader onOrgChange={handleOrgChange} />
         <main className="flex flex-col items-center gap-8 p-8">

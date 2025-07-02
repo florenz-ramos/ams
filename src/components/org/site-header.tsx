@@ -8,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Input } from "@/components/ui/input"
 import { useSupabase } from '@/hooks/use-supabase';
 import { useEffect, useState } from 'react';
-import ModeToggle from '@/components/mode-toggle';
+import ModeToggle from '@/components/org/mode-toggle';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { SupabaseClient } from "@supabase/supabase-js";
 import { useOrganization, Organization } from '@/context/OrganizationContext';
@@ -24,6 +24,8 @@ export function SiteHeader({ onOrgChange }: { onOrgChange?: (org: Organization) 
   const [error, setError] = useState('');
   const [newOrgPlan, setNewOrgPlan] = useState('free');
   const [newOrgType, setNewOrgType] = useState('Personal');
+  const [organizationTypes, setOrganizationTypes] = useState<{ id: string; name: string }[]>([]);
+  const [organizationPlans, setOrganizationPlans] = useState<{ id: string; name: string; display_name: string }[]>([]);
 
   useEffect(() => {
     const user = typeof window !== 'undefined' ? JSON.parse(localStorage.getItem('user') || 'null') : null;
@@ -61,6 +63,36 @@ export function SiteHeader({ onOrgChange }: { onOrgChange?: (org: Organization) 
       };
       fetchData();
     }
+  }, [supabase]);
+
+  useEffect(() => {
+    // Fetch organization types from Supabase
+    const fetchTypes = async () => {
+      const { data, error } = await supabase
+        .from('organization_types')
+        .select('id, name')
+        .eq('is_active', true)
+        .order('name', { ascending: true });
+      if (!error && data) {
+        setOrganizationTypes(data);
+      }
+    };
+    fetchTypes();
+  }, [supabase]);
+
+  useEffect(() => {
+    // Fetch organization plans from Supabase
+    const fetchPlans = async () => {
+      const { data, error } = await supabase
+        .from('organization_plans')
+        .select('id, name, display_name')
+        .eq('is_active', true)
+        .order('display_name', { ascending: true });
+      if (!error && data) {
+        setOrganizationPlans(data);
+      }
+    };
+    fetchPlans();
   }, [supabase]);
 
   const handleSelectOrg = (org: Organization) => {
@@ -170,12 +202,9 @@ export function SiteHeader({ onOrgChange }: { onOrgChange?: (org: Organization) 
                   <SelectValue placeholder="Type of Organization" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Personal">Personal</SelectItem>
-                  <SelectItem value="Educational">Educational</SelectItem>
-                  <SelectItem value="Startup">Startup</SelectItem>
-                  <SelectItem value="Agency">Agency</SelectItem>
-                  <SelectItem value="Company">Company</SelectItem>
-                  <SelectItem value="N/A">N/A</SelectItem>
+                  {organizationTypes.map(type => (
+                    <SelectItem key={type.id} value={type.name}>{type.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={newOrgPlan} onValueChange={setNewOrgPlan}>
@@ -183,9 +212,9 @@ export function SiteHeader({ onOrgChange }: { onOrgChange?: (org: Organization) 
                   <SelectValue placeholder="Plan" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="free">Free – ₱0/month</SelectItem>
-                  <SelectItem value="pro">Pro – ₱1,400/month</SelectItem>
-                  <SelectItem value="team">Team – ₱33,544/month</SelectItem>
+                  {organizationPlans.map(plan => (
+                    <SelectItem key={plan.id} value={plan.name}>{plan.display_name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               {error && <div className="text-destructive text-sm">{error}</div>}

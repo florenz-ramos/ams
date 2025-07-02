@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useSupabase } from '@/hooks/use-supabase';
-import { AppSidebar } from '@/components/app-sidebar';
+import { AppSidebar } from '@/components/org/app-sidebar';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { SiteHeader } from '@/components/site-header';
+import { SiteHeader } from '@/components/org/site-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -14,6 +14,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Pencil, Trash } from 'lucide-react';
 import { useOrganization } from '@/context/OrganizationContext';
+import { cssProperties } from '@/lib/constants';
 
 type AcademicProgram = { 
   id: string; 
@@ -180,10 +181,7 @@ export default function AcademicProgramPage() {
 
   return (
     <SidebarProvider
-      style={{
-        '--sidebar-width': 'calc(var(--spacing) * 72)',
-        '--header-height': 'calc(var(--spacing) * 12)',
-      } as React.CSSProperties}
+      style={cssProperties}
     >
       {selectedOrg && <AppSidebar orgId={selectedOrg.id} />}
       <SidebarInset>

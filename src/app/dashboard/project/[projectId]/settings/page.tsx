@@ -3,12 +3,13 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useSupabase } from '@/hooks/use-supabase';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { ProjectSidebar } from '@/components/project-sidebar';
+import { ProjectSidebar } from '@/components/projects/project-sidebar';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { SupabaseClient } from '@supabase/supabase-js';
-import ProjectHeader from '@/components/project-header';
+import ProjectHeader from '@/components/projects/project-header';
+import { cssProperties } from '@/lib/constants';
 
 type Project = { id: string; name: string; description?: string; organization_id?: string };
 
@@ -82,7 +83,7 @@ export default function ProjectSettingsPage() {
   };
 
   return (
-    <SidebarProvider style={{ '--sidebar-width': 'calc(var(--spacing) * 72)', '--header-height': 'calc(var(--spacing) * 12)' } as React.CSSProperties}>
+    <SidebarProvider style={cssProperties}>
       {project && <ProjectSidebar projectId={projectId} orgId={project.organization_id || ''} />}
       <SidebarInset>
         <ProjectHeader project={project} />

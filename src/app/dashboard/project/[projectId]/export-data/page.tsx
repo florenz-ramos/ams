@@ -3,15 +3,16 @@ import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { useSupabase } from "@/hooks/use-supabase";
 import { SupabaseClient } from "@supabase/supabase-js";
-import { AttendanceDTRPdf } from "@/components/AttendanceDTRPdf";
+import { AttendanceDTRPdf } from "@/components/attendance/attendance-dtr-pdf";
 import { PDFDownloadLink } from "@react-pdf/renderer";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { ProjectSidebar } from "@/components/project-sidebar";
-import ProjectHeader from "@/components/project-header";
+import { ProjectSidebar } from "@/components/projects/project-sidebar";
+import ProjectHeader from "@/components/projects/project-header";
+import { cssProperties } from "@/lib/constants";
 
 type Project = {
   id: string;
@@ -119,7 +120,7 @@ export default function ExportDataPage() {
   }, [selectedFaculty, month, year, projectId, supabase]);
 
   return (
-    <SidebarProvider style={{ '--sidebar-width': 'calc(var(--spacing) * 72)', '--header-height': 'calc(var(--spacing) * 12)' } as React.CSSProperties}>
+    <SidebarProvider style={cssProperties}>
       {orgId && <ProjectSidebar projectId={projectId as string} orgId={orgId} />}
       <SidebarInset>
         <ProjectHeader project={project} />

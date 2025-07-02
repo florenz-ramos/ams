@@ -3,8 +3,8 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSupabase } from "@/hooks/use-supabase";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { ProjectSidebar } from "@/components/project-sidebar";
-import ProjectHeader from "@/components/project-header";
+import { ProjectSidebar } from "@/components/projects/project-sidebar";
+import ProjectHeader from "@/components/projects/project-header";
 import AdmissionWorkflow from "@/components/admission/admission-workflow";
 import { SupabaseClient } from "@supabase/supabase-js";
 

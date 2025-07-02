@@ -1,5 +1,5 @@
 'use client';
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode, useCallback } from 'react';
 import { useSupabase } from '@/hooks/use-supabase';
 import { useOrganization } from './OrganizationContext';
 import { SupabaseClient } from '@supabase/supabase-js';
@@ -50,7 +50,7 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchTheme = async () => {
+  const fetchTheme = useCallback(async () => {
     if (!organization?.id) {
       console.log('No organization ID, using default theme');
       setTheme(defaultTheme);
@@ -90,11 +90,11 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [organization?.id, supabase]);
 
   useEffect(() => {
     fetchTheme();
-  }, [organization?.id, supabase]);
+  }, [fetchTheme]);
 
   // Apply theme to CSS custom properties
   useEffect(() => {

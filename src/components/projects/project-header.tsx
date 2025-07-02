@@ -1,9 +1,9 @@
 "use client";
 
 import { Separator } from "@/components/ui/separator";
-import ModeToggle from "@/components/mode-toggle";
+import ModeToggle from "@/components/org/mode-toggle";
 import React from "react";
-import { SidebarTrigger } from "./ui/sidebar";
+import { SidebarTrigger } from "../ui/sidebar";
 
 export default function ProjectHeader({ project }: { project: { name?: string; description?: string | null } | null }) {
   return (

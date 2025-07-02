@@ -10,10 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/app-sidebar';
-import { SiteHeader } from '@/components/site-header';
+import { AppSidebar } from '@/components/org/app-sidebar';
+import { SiteHeader } from '@/components/org/site-header';
 import bcrypt from 'bcryptjs';
 import { useOrganization } from '@/context/OrganizationContext';
+import { cssProperties } from '@/lib/constants';
 
 const ROLES = [
   { value: 'admin', label: 'Admin' },
@@ -150,10 +151,7 @@ export default function TeamPage() {
   
   return (
     <SidebarProvider
-      style={{
-        '--sidebar-width': 'calc(var(--spacing) * 72)',
-        '--header-height': 'calc(var(--spacing) * 12)',
-      } as React.CSSProperties}
+      style={cssProperties}
     >
       <AppSidebar orgId={org?.id || ''} />
       <SidebarInset>

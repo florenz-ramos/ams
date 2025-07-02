@@ -6,12 +6,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/app-sidebar';
+import { AppSidebar } from '@/components/org/app-sidebar';
 import { useOrganization } from '@/context/OrganizationContext';
-import { SiteHeader } from '@/components/site-header';
+import { SiteHeader } from '@/components/org/site-header';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useTheme } from '@/context/ThemeContext';
 import { ThemeButton } from '@/components/ui/theme-button';
+import { cssProperties } from '@/lib/constants';
 
 type DocumentType = {
   id: string;
@@ -245,10 +246,7 @@ export default function OrganizationSettingsPage() {
 
   return (
     <SidebarProvider
-      style={{
-        '--sidebar-width': 'calc(var(--spacing) * 72)',
-        '--header-height': 'calc(var(--spacing) * 12)',
-      } as React.CSSProperties}
+      style={cssProperties}
     >
       <AppSidebar orgId={org?.id || ''} />
       <SidebarInset>

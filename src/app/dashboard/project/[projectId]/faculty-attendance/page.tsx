@@ -2,7 +2,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { ProjectSidebar } from '@/components/project-sidebar';
+import { ProjectSidebar } from '@/components/projects/project-sidebar';
 import { useSupabase } from '@/hooks/use-supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
@@ -11,7 +11,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import ProjectHeader from '@/components/project-header';
+import ProjectHeader from '@/components/projects/project-header';
+import { cssProperties } from '@/lib/constants';
 
 type TimeSlot = { label: string; time: string };
 
@@ -222,7 +223,7 @@ export default function FacultyAttendancePage() {
   };
 
   return (
-    <SidebarProvider style={{ '--sidebar-width': 'calc(var(--spacing) * 72)', '--header-height': 'calc(var(--spacing) * 12)' } as React.CSSProperties}>
+    <SidebarProvider style={cssProperties}>
       {orgId && <ProjectSidebar projectId={projectIdStr} orgId={orgId} />}
       <SidebarInset>
         <ProjectHeader project={project} />

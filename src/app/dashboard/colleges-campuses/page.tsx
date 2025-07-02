@@ -1,19 +1,17 @@
 'use client';
-import CollegesCampusesSection from '@/components/colleges-campuses-section';
-import { AppSidebar } from '@/components/app-sidebar';
+import CollegesCampusesSection from '@/components/org/colleges-campuses-section';
+import { AppSidebar } from '@/components/org/app-sidebar';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { SiteHeader } from '@/components/site-header';
+import { SiteHeader } from '@/components/org/site-header';
 import { useOrganization } from '@/context/OrganizationContext';
+import { cssProperties } from '@/lib/constants';
 
 export default function CollegesCampusesPage() {
   const { organization: selectedOrg } = useOrganization();
 
   return (
     <SidebarProvider
-      style={{
-        '--sidebar-width': 'calc(var(--spacing) * 72)',
-        '--header-height': 'calc(var(--spacing) * 12)',
-      } as React.CSSProperties}
+      style={cssProperties}
     >
       {selectedOrg && <AppSidebar orgId={selectedOrg.id} />}
       <SidebarInset>

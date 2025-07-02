@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useSupabase } from "@/hooks/use-supabase";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { useTheme } from "@/context/ThemeContext";
@@ -67,51 +67,85 @@ export default function AdmissionAssignment({ selectedApplicant, orgId, onApplic
     fetchAssignments();
   }, [supabase, colleges]);
 
-  // Set selected college/program from applicant
+  // Set selected college from applicant after colleges are loaded
   useEffect(() => {
-    if (selectedApplicant?.assigned_college_id && colleges.length > 0) {
+    if (
+      selectedApplicant?.assigned_college_id &&
+      colleges.some(c => String(c.id) === String(selectedApplicant.assigned_college_id))
+    ) {
       setSelectedCollegeId(String(selectedApplicant.assigned_college_id));
-    } else {
-      setSelectedCollegeId("");
     }
   }, [selectedApplicant, colleges]);
 
-  useEffect(() => {
-    if (selectedApplicant?.assigned_program_id && selectedCollegeId) {
-      setSelectedProgramId(String(selectedApplicant.assigned_program_id));
-    } else {
-      setSelectedProgramId("");
-    }
-  }, [selectedApplicant, selectedCollegeId]);
+  // Filter programs for the selected college
+  const filteredPrograms = useMemo(() => (
+    selectedCollegeId && collegePrograms[selectedCollegeId]
+      ? programs.filter(p => collegePrograms[selectedCollegeId].includes(p.id))
+      : []
+  ), [selectedCollegeId, collegePrograms, programs]);
 
-  // Find assigned program if not in the filtered list
+  // Set selected program from applicant after filteredPrograms are loaded
   useEffect(() => {
     if (
       selectedApplicant?.assigned_program_id &&
-      (!selectedCollegeId ||
-        !collegePrograms[selectedCollegeId] ||
-        !collegePrograms[selectedCollegeId].includes(String(selectedApplicant.assigned_program_id)))
+      filteredPrograms.some(p => String(p.id) === String(selectedApplicant.assigned_program_id))
     ) {
-      // Find in all programs
-      const prog = programs.find(p => p.id === String(selectedApplicant.assigned_program_id));
-      if (prog) setAssignedProgram(prog);
-      else setAssignedProgram(null);
-    } else {
-      setAssignedProgram(null);
+      setSelectedProgramId(String(selectedApplicant.assigned_program_id));
     }
-  }, [selectedApplicant, selectedCollegeId, collegePrograms, programs]);
+  }, [selectedApplicant, filteredPrograms]);
 
-  // Filter programs for the selected college
-  const filteredPrograms = selectedCollegeId && collegePrograms[selectedCollegeId]
-    ? programs.filter(p => collegePrograms[selectedCollegeId].includes(p.id))
-    : [];
+  const assignedProgramId = String(selectedApplicant?.assigned_program_id);
+  const assignedProgramOption =
+    assignedProgram && !filteredPrograms.find(p => p.id === assignedProgramId)
+      ? [{ id: assignedProgram.id, name: assignedProgram.name }]
+      : [];
 
   const assignedCollegeObj = colleges.find(c => String(c.id) === selectedCollegeId);
   const assignedCollege = assignedCollegeObj ? assignedCollegeObj.cc_name : '';
-  const assignedProgramId = String(selectedApplicant?.assigned_program_id);
-  const assignedProgramOption = assignedProgram && !filteredPrograms.find(p => p.id === assignedProgramId)
-    ? [{ id: assignedProgram.id, name: assignedProgram.name }]
-    : [];
+
+  useEffect(() => {
+    async function fetchAssignedProgramIfMissing() {
+      if (
+        selectedApplicant?.assigned_program_id &&
+        selectedCollegeId &&
+        !filteredPrograms.find(p => p.id === String(selectedApplicant.assigned_program_id))
+      ) {
+        // Fetch the program directly if not in the filtered list
+        const { data } = await supabase
+          .from('academic_programs')
+          .select('id, program_code, program_desc')
+          .eq('id', selectedApplicant.assigned_program_id)
+          .single();
+        if (data) {
+          setAssignedProgram({
+            id: String(data.id),
+            name: data.program_code + (data.program_desc ? ` - ${data.program_desc}` : '')
+          });
+        } else {
+          setAssignedProgram(null);
+        }
+      } else {
+        setAssignedProgram(null);
+      }
+    }
+    fetchAssignedProgramIfMissing();
+  }, [selectedApplicant, selectedCollegeId, filteredPrograms, supabase]);
+
+  useEffect(() => {
+    if (
+      selectedCollegeId &&
+      selectedProgramId &&
+      !filteredPrograms.find(p => p.id === selectedProgramId)
+    ) {
+      setSelectedProgramId("");
+    }
+  }, [selectedCollegeId, selectedProgramId, filteredPrograms]);
+
+  // When the user changes the college/campus, always clear selectedProgramId
+  const handleCollegeChange = (collegeId: string) => {
+    setSelectedCollegeId(collegeId);
+    setSelectedProgramId("");
+  };
 
   return (
     <form
@@ -141,7 +175,7 @@ export default function AdmissionAssignment({ selectedApplicant, orgId, onApplic
       className="flex flex-col gap-4 max-w-lg mt-4"
     >
       <label className="font-medium theme-text">Assign College/Campus</label>
-      <Select value={selectedCollegeId} onValueChange={setSelectedCollegeId} required>
+      <Select value={selectedCollegeId} onValueChange={handleCollegeChange} required>
         <SelectTrigger className="w-full" style={{ borderColor: theme.secondary_color }}>
           <SelectValue placeholder="Select a college/campus" />
         </SelectTrigger>
@@ -163,24 +197,21 @@ export default function AdmissionAssignment({ selectedApplicant, orgId, onApplic
               <SelectValue placeholder="Select a program" />
             </SelectTrigger>
             <SelectContent>
-              {/* Show currently assigned program at the top if not in the list */}
               {assignedProgramOption.length > 0 && (
                 <SelectItem
                   key={assignedProgramOption[0].id}
                   value={assignedProgramOption[0].id}
-                  disabled
-                  style={{ fontStyle: 'italic', color: '#888' }}
                 >
-                  {assignedProgramOption[0].name} (Currently assigned)
+                  {assignedProgramOption[0].name}
                 </SelectItem>
               )}
-              {/* Divider if both assigned and available programs exist */}
               {assignedProgramOption.length > 0 && filteredPrograms.length > 0 && (
                 <div style={{ borderTop: '1px solid #eee', margin: '4px 0' }} />
               )}
-              {/* List available programs */}
               {filteredPrograms.length === 0 ? (
-                <div className="p-2 text-sm text-destructive">No programs assigned to this college/campus. Please assign programs in Colleges/Campuses management.</div>
+                <div className="p-2 text-sm text-destructive">
+                  No programs assigned to this college/campus. Please assign programs in Colleges/Campuses management.
+                </div>
               ) : (
                 filteredPrograms.map(prog => (
                   <SelectItem key={prog.id} value={prog.id}>

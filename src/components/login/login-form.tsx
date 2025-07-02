@@ -24,6 +24,7 @@ export function LoginForm({
 }: React.ComponentProps<"div"> & { onForceChangePassword?: () => void }) {
   const supabase = useSupabase() as SupabaseClient;
   const router = useRouter();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -35,17 +36,18 @@ export function LoginForm({
     setError("");
     setLoading(true);
     if (isRegister) {
-      // Registration: hash password and insert user (no name, no role)
+      // Registration: hash password and insert user with name
       const hash = await bcrypt.hash(password, 10);
       const { error: insertError } = await supabase
         .from('users')
-        .insert([{ email, password_hash: hash }]);
+        .insert([{ email, password_hash: hash, name }]);
       if (insertError) {
         setError(insertError.message);
         setLoading(false);
         return;
       }
       setIsRegister(false);
+      setName("");
       setEmail("");
       setPassword("");
       setLoading(false);
@@ -62,6 +64,12 @@ export function LoginForm({
         setLoading(false);
         return;
       }
+      // Prevent admin or super-admin from logging in here
+      if (user.role === 'admin' || user.role === 'super-admin') {
+        setError('Admin accounts must use the admin login page.');
+        setLoading(false);
+        return;
+      }
       const valid = await bcrypt.compare(password, user.password_hash);
       if (!valid) {
         setError('Invalid email or password');
@@ -75,6 +83,7 @@ export function LoginForm({
         name: user.name,
         role: user.role,
       }));
+      
       setLoading(false);
       if (user.must_change_password && onForceChangePassword) {
         onForceChangePassword();
@@ -90,12 +99,26 @@ export function LoginForm({
         <CardHeader>
           <CardTitle>{isRegister ? 'Register a new account' : 'Login to your account'}</CardTitle>
           <CardDescription>
-            {isRegister ? 'Enter your email and password to register.' : 'Enter your email below to login to your account'}
+            {isRegister ? 'Enter your details to register.' : 'Enter your email below to login to your account'}
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit}>
             <div className="flex flex-col gap-6">
+              {isRegister && (
+                <div className="grid gap-3">
+                  <Label htmlFor="name">Full Name</Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    placeholder="John Doe"
+                    required
+                    value={name}
+                    onChange={e => setName(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+              )}
               <div className="grid gap-3">
                 <Label htmlFor="email">Email</Label>
                 <Input

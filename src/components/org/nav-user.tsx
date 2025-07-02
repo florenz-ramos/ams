@@ -61,6 +61,9 @@ export function NavUser({
     return '?';
   }
 
+
+  
+
   return (
     <SidebarMenu>
       <SidebarMenuItem>

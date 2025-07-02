@@ -5,9 +5,9 @@ import { SupabaseClient } from "@supabase/supabase-js";
 import { useParams } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AppSidebar } from "@/components/app-sidebar";
+import { AppSidebar } from "@/components/org/app-sidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { SiteHeader } from "@/components/site-header";
+import { SiteHeader } from "@/components/org/site-header";
 import { useOrganization } from "@/context/OrganizationContext";
 import Link from "next/link";
 

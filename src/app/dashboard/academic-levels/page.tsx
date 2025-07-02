@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useSupabase } from '@/hooks/use-supabase';
-import { AppSidebar } from '@/components/app-sidebar';
+import { AppSidebar } from '@/components/org/app-sidebar';
 import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { SiteHeader } from '@/components/site-header';
+import { SiteHeader } from '@/components/org/site-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { useOrganization } from '@/context/OrganizationContext';
+import { cssProperties } from '@/lib/constants';
 
 type AcademicLevel = { id: string; academic_level: string; organization_id: string };
 
@@ -84,10 +85,7 @@ export default function AcademicLevelsPage() {
 
   return (
     <SidebarProvider
-      style={{
-        '--sidebar-width': 'calc(var(--spacing) * 72)',
-        '--header-height': 'calc(var(--spacing) * 12)',
-      } as React.CSSProperties}
+      style={cssProperties}
     >
       {selectedOrg && <AppSidebar orgId={selectedOrg.id} />}
       <SidebarInset>

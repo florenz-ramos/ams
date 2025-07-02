@@ -8,8 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { SiteHeader } from "@/components/site-header";
-import { AppSidebar } from "@/components/app-sidebar";
+import { SiteHeader } from "@/components/org/site-header";
+import { AppSidebar } from "@/components/org/app-sidebar";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import Link from 'next/link';
 
