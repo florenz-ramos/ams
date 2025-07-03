@@ -112,7 +112,7 @@ export function NavUser({
                 <IconUserCircle />
                 Account
               </DropdownMenuItem>
-              <DropdownMenuItem>
+              <DropdownMenuItem onClick={() => router.push('/dashboard/billing')}>
                 <IconCreditCard />
                 Billing
               </DropdownMenuItem>

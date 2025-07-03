@@ -1,7 +1,7 @@
 "use client";
 import Link from 'next/link';
 import { Sidebar, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
-import { IconArrowLeft, IconSettings, IconLayoutDashboard, IconUserCheck, IconUsers, IconBell, IconFileText, IconChartBar } from '@tabler/icons-react';
+import { IconArrowLeft, IconSettings, IconLayoutDashboard, IconUserCheck, IconUsers, IconBell, IconFileText, IconChartBar, IconBook } from '@tabler/icons-react';
 import { NavUser } from '@/components/org/nav-user';
 import { useEffect, useState } from 'react';
 import { useSupabase } from '@/hooks/use-supabase';
@@ -117,6 +117,13 @@ export function ProjectSidebar({ orgId, projectId }: { orgId: string; projectId:
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={pathname === `/dashboard/project/${projectId}`}>
               <Link href={`/dashboard/project/${projectId}`}> <IconLayoutDashboard className="mr-2" /> Overview </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname === `/dashboard/project/${projectId}/curriculum`}>
+              <Link href={`/dashboard/project/${projectId}/curriculum`}>
+                <IconBook className="mr-2" /> Curriculum
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           {/* Render nav items based on requirements */}

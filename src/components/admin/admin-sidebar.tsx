@@ -7,9 +7,7 @@ import { NavAdminUser } from "./nav-user";
 
 const data = {
     navMain: [
-        {
-            title: 'Dashboard', url: '#', icon: IconDashboard
-        }
+        { title: 'Dashboard', url: '#', icon: IconDashboard }
     ]
 }
 

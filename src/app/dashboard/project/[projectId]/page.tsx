@@ -16,6 +16,7 @@ type Project = {
   user_targets?: string[];
   requirements?: string[];
   organization_id?: string;
+  default_description?: string;
 };
 
 export default function ProjectPage() {
@@ -47,8 +48,10 @@ export default function ProjectPage() {
               {project ? (
                 <>
                   <h1 className="text-2xl font-bold mb-4">{project.name}</h1>
-                  {project.description ? (
-                    <div className="text-muted-foreground text-base mb-4">{project.description}</div>
+                  {(project.default_description || project.description) ? (
+                    <div className="text-muted-foreground text-base mb-4" style={{ whiteSpace: 'pre-line' }}>
+                      {project.default_description || project.description}
+                    </div>
                   ) : (
                     <div className="text-muted-foreground text-base mb-4">No description provided.</div>
                   )}

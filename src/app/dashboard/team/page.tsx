@@ -15,9 +15,10 @@ import { SiteHeader } from '@/components/org/site-header';
 import bcrypt from 'bcryptjs';
 import { useOrganization } from '@/context/OrganizationContext';
 import { cssProperties } from '@/lib/constants';
+import { Label } from '@/components/ui/label';
 
 const ROLES = [
-  { value: 'admin', label: 'Admin' },
+  { value: 'org-admin', label: 'Org Admin' },
   { value: 'faculty', label: 'Faculty' },
   { value: 'student', label: 'Student' },
 ];
@@ -46,6 +47,9 @@ export default function TeamPage() {
   const [editAddress, setEditAddress] = useState('');
   const [editBirthdate, setEditBirthdate] = useState('');
   const [generatedPassword, setGeneratedPassword] = useState<string | null>(null);
+  const [currentTeamMembers, setCurrentTeamMembers] = useState<number | null>(null);
+  const [maxTeamMembers, setMaxTeamMembers] = useState<number | null>(null);
+  const [canManageMembers, setCanManageMembers] = useState(false);
 
   useEffect(() => {
     const fetchMembers = async () => {
@@ -57,8 +61,33 @@ export default function TeamPage() {
         .select('*')
         .eq('organization_id', org.id);
       if (!error) setMembers(membersData || []);
+      // Check if user is org-admin in this org
+      const isOrgAdmin = (membersData || []).some(
+        m => m.user_id === user?.id && m.role === 'org-admin'
+      );
+      setCanManageMembers((org && org.owner === user?.id) || isOrgAdmin);
     };
     fetchMembers();
+  }, [supabase, org]);
+
+  useEffect(() => {
+    const fetchUsageAndLimit = async () => {
+      if (!org) return;
+      const { data: usage } = await supabase
+        .from('organization_usage')
+        .select('current_team_members, plan_id')
+        .eq('organization_id', org.id)
+        .single();
+      if (!usage) return;
+      setCurrentTeamMembers(usage.current_team_members);
+      const { data: plan } = await supabase
+        .from('organization_plans')
+        .select('max_team_members')
+        .eq('id', usage.plan_id)
+        .single();
+      setMaxTeamMembers(plan?.max_team_members ?? null);
+    };
+    fetchUsageAndLimit();
   }, [supabase, org]);
 
   const refreshMembers = async (orgId: string) => {
@@ -77,6 +106,34 @@ export default function TeamPage() {
     setGeneratedPassword(null);
     if (!org) {
       setError('No organization selected.');
+      setLoading(false);
+      return;
+    }
+    // Fetch current usage and plan limit
+    const { data: usageRows } = await supabase
+      .from('organization_usage')
+      .select('current_team_members, plan_id')
+      .eq('organization_id', org.id)
+      .single();
+    if (!usageRows) {
+      setError('Usage data not found.');
+      setLoading(false);
+      return;
+    }
+    const { current_team_members, plan_id } = usageRows;
+    const { data: planRows } = await supabase
+      .from('organization_plans')
+      .select('max_team_members')
+      .eq('id', plan_id)
+      .single();
+    if (!planRows) {
+      setError('Plan data not found.');
+      setLoading(false);
+      return;
+    }
+    const { max_team_members } = planRows;
+    if (max_team_members !== null && current_team_members >= max_team_members) {
+      setError('Team member limit reached for this plan.');
       setLoading(false);
       return;
     }
@@ -128,7 +185,19 @@ export default function TeamPage() {
       setInviteAddress('');
       setInviteBirthdate('');
       setInviteRole('student');
+      // Increment current_team_members in organization_usage
+      await supabase
+        .from('organization_usage')
+        .update({ current_team_members: (currentTeamMembers ?? 0) + 1 })
+        .eq('organization_id', org.id);
       await refreshMembers(org.id);
+      // Refresh usage state
+      const { data: usage } = await supabase
+        .from('organization_usage')
+        .select('current_team_members')
+        .eq('organization_id', org.id)
+        .single();
+      setCurrentTeamMembers(usage?.current_team_members ?? null);
     }
   };
 
@@ -146,6 +215,18 @@ export default function TeamPage() {
       setError(error.message);
     } else {
       await refreshMembers(org.id);
+      // Decrement current_team_members in organization_usage
+      await supabase
+        .from('organization_usage')
+        .update({ current_team_members: (currentTeamMembers ?? 1) - 1 })
+        .eq('organization_id', org.id);
+      // Refresh usage state
+      const { data: usage } = await supabase
+        .from('organization_usage')
+        .select('current_team_members')
+        .eq('organization_id', org.id)
+        .single();
+      setCurrentTeamMembers(usage?.current_team_members ?? null);
     }
   };
   
@@ -160,7 +241,15 @@ export default function TeamPage() {
           <Card className="w-full">
             <CardContent>
               <h1 className="text-2xl font-bold mb-4">Team Members</h1>
-              <Button className="mb-4" onClick={() => setShowAdd(true)} disabled={!isOwner}>
+              {maxTeamMembers !== null && currentTeamMembers !== null && (
+                <div className="mb-2 text-sm text-muted-foreground">
+                  Team Members: {currentTeamMembers} / {maxTeamMembers}
+                  {currentTeamMembers >= maxTeamMembers && (
+                    <span className="text-destructive ml-2">(Full)</span>
+                  )}
+                </div>
+              )}
+              <Button className="mb-4" onClick={() => setShowAdd(true)} disabled={!canManageMembers}>
                 Add Member
               </Button>
               <Table>
@@ -214,48 +303,67 @@ export default function TeamPage() {
                 <DialogTitle>Add Team Member</DialogTitle>
               </DialogHeader>
               <form onSubmit={handleAdd} className="flex flex-col gap-2">
-                <Input
-                  type="text"
-                  placeholder="Name"
-                  value={inviteName}
-                  onChange={e => setInviteName(e.target.value)}
-                  required
-                  disabled={!isOwner}
-                />
-                <Input
-                  type="email"
-                  placeholder="Email"
-                  value={inviteEmail}
-                  onChange={e => setInviteEmail(e.target.value)}
-                  required
-                  disabled={!isOwner}
-                />
-                <Input
-                  type="text"
-                  placeholder="Address"
-                  value={inviteAddress}
-                  onChange={e => setInviteAddress(e.target.value)}
-                  required
-                  disabled={!isOwner}
-                />
-                <Input
-                  type="date"
-                  placeholder="Birthdate"
-                  value={inviteBirthdate}
-                  onChange={e => setInviteBirthdate(e.target.value)}
-                  required
-                  disabled={!isOwner}
-                />
-                <Select value={inviteRole} onValueChange={setInviteRole} disabled={!isOwner}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {ROLES.map(role => (
-                      <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <div>
+                  <Label htmlFor="add-name">Name</Label>
+                  <Input
+                    id="add-name"
+                    type="text"
+                    placeholder="Name"
+                    value={inviteName}
+                    onChange={e => setInviteName(e.target.value)}
+                    required
+                    disabled={!canManageMembers}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="add-email">Email</Label>
+                  <Input
+                    id="add-email"
+                    type="email"
+                    placeholder="Email"
+                    value={inviteEmail}
+                    onChange={e => setInviteEmail(e.target.value)}
+                    required
+                    disabled={!canManageMembers}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="add-address">Address</Label>
+                  <Input
+                    id="add-address"
+                    type="text"
+                    placeholder="Address"
+                    value={inviteAddress}
+                    onChange={e => setInviteAddress(e.target.value)}
+                    required
+                    disabled={!canManageMembers}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="add-birthdate">Birthdate</Label>
+                  <Input
+                    id="add-birthdate"
+                    type="date"
+                    placeholder="dd/mm/yyyy"
+                    value={inviteBirthdate}
+                    onChange={e => setInviteBirthdate(e.target.value)}
+                    required
+                    disabled={!canManageMembers}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="add-role">Role</Label>
+                  <Select value={inviteRole} onValueChange={setInviteRole} disabled={!canManageMembers}>
+                    <SelectTrigger id="add-role">
+                      <SelectValue placeholder="Role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {ROLES.map(role => (
+                        <SelectItem key={role.value} value={role.value}>{role.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 {error && <div className="text-destructive text-sm">{error}</div>}
                 {success && <div className="text-green-600 text-sm">{success}</div>}
                 {generatedPassword && (
@@ -265,7 +373,7 @@ export default function TeamPage() {
                   </div>
                 )}
                 <DialogFooter>
-                  <Button type="submit" disabled={loading || !isOwner}>{loading ? 'Adding...' : 'Add User'}</Button>
+                  <Button type="submit" disabled={loading || !canManageMembers}>{loading ? 'Adding...' : 'Add User'}</Button>
                 </DialogFooter>
               </form>
             </DialogContent>

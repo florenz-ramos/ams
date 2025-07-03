@@ -13,6 +13,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { useOrganization, Organization } from '@/context/OrganizationContext';
 
+// Define UsageInsert interface
+interface UsageInsert {
+  organization_id: string;
+  plan_id: string | null;
+  current_team_members: number;
+  current_students: number;
+  current_projects: number;
+}
+
 export function SiteHeader({ onOrgChange }: { onOrgChange?: (org: Organization) => void }) {
   const supabase = useSupabase() as SupabaseClient;
   const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -136,6 +145,46 @@ export function SiteHeader({ onOrgChange }: { onOrgChange?: (org: Organization) 
           email: user?.email || 'unknown@example.com'
         }
       ]);
+      // Look up the plan's UUID and limits by name
+      const { data: planRows } = await supabase
+        .from('organization_plans')
+        .select('id, max_team_members, max_students, max_projects, price, currency')
+        .eq('name', newOrgPlan)
+        .limit(1);
+      const plan = planRows && planRows.length > 0 ? planRows[0] : null;
+      const planId = plan ? plan.id : null;
+
+      // Set initial usage values based on plan limits
+      let usageInsert: UsageInsert = {
+        organization_id: org.id,
+        plan_id: planId,
+        current_team_members: 1, // Owner is the first member
+        current_students: 0,
+        current_projects: 0,
+      };
+      if (plan) {
+        usageInsert = {
+          ...usageInsert,
+        };
+      }
+
+      // Insert initial organization_usage row with plan_id and initial values
+      await supabase.from('organization_usage').insert([
+        usageInsert
+      ]);
+      // Insert initial billing history entry
+      if (plan) {
+        await supabase.from('organization_billing_history').insert([
+          {
+            organization_id: org.id,
+            plan_id: plan.id,
+            amount: plan.price ?? 0,
+            currency: plan.currency ?? 'PHP',
+            status: plan.price && plan.price > 0 ? 'pending' : 'paid',
+            paid_at: plan.price && plan.price > 0 ? null : new Date().toISOString(),
+          }
+        ]);
+      }
       setOrganizations([...organizations, org]);
       setOrganization(org);
       onOrgChange?.(org);

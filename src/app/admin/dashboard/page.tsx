@@ -11,6 +11,9 @@ import { AdminSidebar } from "@/components/admin/admin-sidebar";
 import { useEffect, useState } from 'react';
 import { useSupabase } from '@/hooks/use-supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 type Organization = {
   id: string;
@@ -40,6 +43,9 @@ type SubscriptionPlan = {
   description: string | null;
   price: number | null;
   currency: string | null;
+  max_team_members?: number | null;
+  max_students?: number | null;
+  max_projects?: number | null;
 };
 
 export default function AdminDashboardPage() {
@@ -57,6 +63,14 @@ export default function AdminDashboardPage() {
   const [plansLoading, setPlansLoading] = useState(true);
   const [plansError, setPlansError] = useState("");
   const [owners, setOwners] = useState<Record<string, string>>({}); // org ownerId -> owner name
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editPlan, setEditPlan] = useState<SubscriptionPlan | null>(null);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState("");
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [addPlan, setAddPlan] = useState<SubscriptionPlan | null>(null);
+  const [addLoading, setAddLoading] = useState(false);
+  const [addError, setAddError] = useState("");
 
   useEffect(() => {
     const fetchOrganizations = async () => {
@@ -117,7 +131,7 @@ export default function AdminDashboardPage() {
       setPlansError("");
       const { data, error } = await supabase
         .from('organization_plans')
-        .select('id, name, display_name, description, price, currency')
+        .select('id, name, display_name, description, price, currency, max_team_members, max_students, max_projects')
         .eq('is_active', true)
         .order('display_name', { ascending: true });
       if (error) {
@@ -135,6 +149,82 @@ export default function AdminDashboardPage() {
   const totalOrganizations = organizations.length;
   const freePlanUsers = organizations.filter(org => org.plan === 'free').length;
   const proPlanUsers = organizations.filter(org => org.plan === 'pro').length;
+
+  const handleEditClick = (plan: SubscriptionPlan) => {
+    setEditPlan(plan);
+    setEditModalOpen(true);
+    setEditError("");
+  };
+
+  const handleEditChange = (field: keyof SubscriptionPlan, value: string) => {
+    if (!editPlan) return;
+    let parsedValue: string | number | null = value;
+    if (["price", "max_team_members", "max_students", "max_projects"].includes(field)) {
+      parsedValue = value === '' ? null : Number(value);
+    }
+    setEditPlan({ ...editPlan, [field]: parsedValue });
+  };
+
+  const handleEditSave = async () => {
+    if (!editPlan) return;
+    setEditLoading(true);
+    setEditError("");
+    const { id, ...updateFields } = editPlan;
+    const { error } = await supabase
+      .from('organization_plans')
+      .update(updateFields)
+      .eq('id', id);
+    setEditLoading(false);
+    if (error) {
+      setEditError(error.message);
+      return;
+    }
+    setSubscriptionPlans((prev) => prev.map((p) => p.id === id ? editPlan : p));
+    setEditModalOpen(false);
+    setEditPlan(null);
+  };
+
+  const handleAddClick = () => {
+    setAddPlan({
+      id: '',
+      name: '',
+      display_name: '',
+      description: '',
+      price: 0,
+      currency: 'PHP',
+    });
+    setAddModalOpen(true);
+    setAddError("");
+  };
+
+  const handleAddChange = (field: keyof SubscriptionPlan, value: string) => {
+    if (!addPlan) return;
+    let parsedValue: string | number | null = value;
+    if (["price", "max_team_members", "max_students", "max_projects"].includes(field)) {
+      parsedValue = value === '' ? null : Number(value);
+    }
+    setAddPlan({ ...addPlan, [field]: parsedValue });
+  };
+
+  const handleAddSave = async () => {
+    if (!addPlan) return;
+    setAddLoading(true);
+    setAddError("");
+    const { /* id, */ ...insertFields } = addPlan;
+    const { data, error } = await supabase
+      .from('organization_plans')
+      .insert([insertFields])
+      .select()
+      .single();
+    setAddLoading(false);
+    if (error) {
+      setAddError(error.message);
+      return;
+    }
+    setSubscriptionPlans((prev) => [...prev, data]);
+    setAddModalOpen(false);
+    setAddPlan(null);
+  };
 
   return (
     <SidebarProvider>
@@ -192,14 +282,14 @@ export default function AdminDashboardPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between p-3 rounded-lg">
                       <div>
                         <p className="font-medium">New organization registered</p>
                         <p className="text-sm text-gray-600">ABC University joined the platform</p>
                       </div>
                       <span className="text-sm text-gray-500">2 hours ago</span>
                     </div>
-                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div className="flex items-center justify-between p-3 rounded-lg">
                       <div>
                         <p className="font-medium">Plan upgrade</p>
                         <p className="text-sm text-gray-600">XYZ College upgraded to Pro plan</p>
@@ -220,7 +310,7 @@ export default function AdminDashboardPage() {
                       <CardTitle>Subscription Plans</CardTitle>
                       <CardDescription>Manage available subscription plans and their limits</CardDescription>
                     </div>
-                    <Button>Add New Plan</Button>
+                    <Button onClick={handleAddClick}>Add New Plan</Button>
                   </div>
                 </CardHeader>
                 <CardContent>
@@ -235,6 +325,9 @@ export default function AdminDashboardPage() {
                         <TableHead>Plan Name</TableHead>
                         <TableHead>Price</TableHead>
                         <TableHead>Description</TableHead>
+                        <TableHead>Team Limit</TableHead>
+                        <TableHead>Student Limit</TableHead>
+                        <TableHead>Project Limit</TableHead>
                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -244,9 +337,12 @@ export default function AdminDashboardPage() {
                           <TableCell className="font-medium">{plan.display_name}</TableCell>
                           <TableCell>{plan.price ? `₱${Number(plan.price).toLocaleString()}` : 'Free'}</TableCell>
                           <TableCell>{plan.description || '-'}</TableCell>
+                          <TableCell>{plan.max_team_members ?? '-'}</TableCell>
+                          <TableCell>{plan.max_students ?? '-'}</TableCell>
+                          <TableCell>{plan.max_projects ?? '-'}</TableCell>
                           <TableCell>
                             <div className="flex space-x-2">
-                              <Button size="sm" variant="outline">Edit</Button>
+                              <Button size="sm" variant="outline" onClick={() => handleEditClick(plan)}>Edit</Button>
                               <Button size="sm" variant="destructive">Delete</Button>
                             </div>
                           </TableCell>
@@ -383,23 +479,106 @@ export default function AdminDashboardPage() {
           </Tabs>
         </main>
       </SidebarInset>
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Subscription Plan</DialogTitle>
+          </DialogHeader>
+          {editPlan && (
+            <form onSubmit={e => { e.preventDefault(); handleEditSave(); }} className="flex flex-col gap-4">
+              <div>
+                <Label htmlFor="edit-display-name">Display Name</Label>
+                <Input id="edit-display-name" value={editPlan.display_name} onChange={e => handleEditChange('display_name', e.target.value)} required />
+              </div>
+              <div>
+                <Label htmlFor="edit-name">Name (unique)</Label>
+                <Input id="edit-name" value={editPlan.name} onChange={e => handleEditChange('name', e.target.value)} required />
+              </div>
+              <div>
+                <Label htmlFor="edit-description">Description</Label>
+                <Input id="edit-description" value={editPlan.description || ''} onChange={e => handleEditChange('description', e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="edit-price">Price</Label>
+                <Input id="edit-price" type="number" min="0" step="0.01" value={editPlan.price ?? ''} onChange={e => handleEditChange('price', e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="edit-currency">Currency</Label>
+                <Input id="edit-currency" value={editPlan.currency || ''} onChange={e => handleEditChange('currency', e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="edit-max-team-members">Team Member Limit</Label>
+                <Input id="edit-max-team-members" type="number" min="0" value={editPlan.max_team_members ?? ''} onChange={e => handleEditChange('max_team_members', e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="edit-max-students">Student Limit</Label>
+                <Input id="edit-max-students" type="number" min="0" value={editPlan.max_students ?? ''} onChange={e => handleEditChange('max_students', e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="edit-max-projects">Project Limit</Label>
+                <Input id="edit-max-projects" type="number" min="0" value={editPlan.max_projects ?? ''} onChange={e => handleEditChange('max_projects', e.target.value)} />
+              </div>
+              {editError && <div className="text-destructive text-sm">{editError}</div>}
+              <DialogFooter>
+                <Button type="submit" disabled={editLoading}>{editLoading ? 'Saving...' : 'Save'}</Button>
+                <DialogClose asChild>
+                  <Button type="button" variant="outline">Cancel</Button>
+                </DialogClose>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+      <Dialog open={addModalOpen} onOpenChange={setAddModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Subscription Plan</DialogTitle>
+          </DialogHeader>
+          {addPlan && (
+            <form onSubmit={e => { e.preventDefault(); handleAddSave(); }} className="flex flex-col gap-4">
+              <div>
+                <Label htmlFor="add-display-name">Display Name</Label>
+                <Input id="add-display-name" value={addPlan.display_name} onChange={e => handleAddChange('display_name', e.target.value)} required />
+              </div>
+              <div>
+                <Label htmlFor="add-name">Name (unique)</Label>
+                <Input id="add-name" value={addPlan.name} onChange={e => handleAddChange('name', e.target.value)} required />
+              </div>
+              <div>
+                <Label htmlFor="add-description">Description</Label>
+                <Input id="add-description" value={addPlan.description || ''} onChange={e => handleAddChange('description', e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="add-price">Price</Label>
+                <Input id="add-price" type="number" min="0" step="0.01" value={addPlan.price ?? ''} onChange={e => handleAddChange('price', e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="add-currency">Currency</Label>
+                <Input id="add-currency" value={addPlan.currency || ''} onChange={e => handleAddChange('currency', e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="add-max-team-members">Team Member Limit</Label>
+                <Input id="add-max-team-members" type="number" min="0" value={addPlan.max_team_members ?? ''} onChange={e => handleAddChange('max_team_members', e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="add-max-students">Student Limit</Label>
+                <Input id="add-max-students" type="number" min="0" value={addPlan.max_students ?? ''} onChange={e => handleAddChange('max_students', e.target.value)} />
+              </div>
+              <div>
+                <Label htmlFor="add-max-projects">Project Limit</Label>
+                <Input id="add-max-projects" type="number" min="0" value={addPlan.max_projects ?? ''} onChange={e => handleAddChange('max_projects', e.target.value)} />
+              </div>
+              {addError && <div className="text-destructive text-sm">{addError}</div>}
+              <DialogFooter>
+                <Button type="submit" disabled={addLoading}>{addLoading ? 'Saving...' : 'Save'}</Button>
+                <DialogClose asChild>
+                  <Button type="button" variant="outline">Cancel</Button>
+                </DialogClose>
+              </DialogFooter>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
     </SidebarProvider>
-
-    // <div className="min-h-screen bg-gray-50">
-    //   {/* Header */}
-    //   <header className="bg-white shadow-sm border-b">
-    //     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    //       <div className="flex justify-between items-center py-4">
-    //         <div>
-    //           <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-    //           <p className="text-gray-600">Manage subscriptions and system settings</p>
-    //         </div>
-    //         <Button variant="outline">Logout</Button>
-    //       </div>
-    //     </div>
-    //   </header>
-
-
-    // </div>
   );
 } 

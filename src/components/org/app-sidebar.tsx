@@ -7,13 +7,13 @@ import {
   IconUsers,
   IconBuilding,
   IconSchool,
+  IconBook,
 } from "@tabler/icons-react"
 import { useEffect, useState } from 'react';
 import { useSupabase } from '@/hooks/use-supabase';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { usePathname } from 'next/navigation';
 import { useOrganization } from '@/context/OrganizationContext';
-import Link from 'next/link';
 
 import { NavUser } from "@/components/org/nav-user"
 import {
@@ -23,9 +23,41 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarTrigger,
 } from "@/components/ui/sidebar"
 
+const sidebarNav = [
+  {
+    label: "Team",
+    href: "/dashboard/team",
+    icon: IconUsers,
+  },
+  {
+    label: "Students",
+    href: "/dashboard/students",
+    icon: IconUsers,
+  },
+  {
+    label: "Colleges/Campuses",
+    href: "/dashboard/colleges-campuses",
+    icon: IconBuilding,
+  },
+  {
+    label: "Academic Programs",
+    href: "/dashboard/academic-programs",
+    icon: IconSchool,
+  },
+  {
+    label: "Academic Levels",
+    href: "/dashboard/academic-levels",
+    icon: IconSchool,
+  },
+  {
+    label: "Courses",
+    href: "/dashboard/courses",
+    icon: IconBook,
+  },
+  //add course navigation here
+];
 
 export function AppSidebar({ orgId }: { orgId: string }) {
   const pathname = usePathname();
@@ -93,7 +125,6 @@ export function AppSidebar({ orgId }: { orgId: string }) {
               </SidebarMenuButton>
             </SidebarMenuItem>
           </SidebarMenu>
-          <SidebarTrigger />
         </div>
       </SidebarHeader>
       <SidebarContent>
@@ -109,41 +140,15 @@ export function AppSidebar({ orgId }: { orgId: string }) {
               </SidebarMenuItem>
               {!roleLoading && userRole !== 'faculty' && (
                 <>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname === '/dashboard/team'}>
-                      <a href="/dashboard/team">
-                        <IconUsers className="mr-2" /> Team
-                      </a>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname === '/dashboard/students'}>
-                      <Link href="/dashboard/students">
-                        <IconUsers className="mr-2" /> Students
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname === '/dashboard/colleges-campuses'}>
-                      <a href="/dashboard/colleges-campuses">
-                        <IconBuilding className="mr-2" /> Colleges/Campuses
-                      </a>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname === '/dashboard/academic-programs'}>
-                      <a href="/dashboard/academic-programs">
-                        <IconSchool className="mr-2" /> Academic Programs
-                      </a>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild isActive={pathname === '/dashboard/academic-levels'}>
-                      <a href="/dashboard/academic-levels">
-                        <IconSchool className="mr-2" /> Academic Levels
-                      </a>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  {sidebarNav.map(item => (
+                    <SidebarMenuItem key={item.href}>
+                      <SidebarMenuButton asChild isActive={pathname === item.href}>
+                        <a href={item.href}>
+                          <item.icon className="mr-2" /> {item.label}
+                        </a>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
                 </>
               )}
               {!roleLoading && userRole !== 'faculty' && (
