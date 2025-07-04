@@ -1,7 +1,8 @@
 ---
 description: 
 globs: 
-alwaysApply: false
+alwaysApply: true
 ---
 - DONT USE "ANY" to avoid building error
 - REMOVE any unsued code to avoid building error
+- USE SHADCN FOR UI

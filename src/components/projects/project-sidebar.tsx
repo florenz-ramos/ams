@@ -99,6 +99,7 @@ export function ProjectSidebar({ orgId, projectId }: { orgId: string; projectId:
     },
   ];
 
+
   return (
     <Sidebar collapsible="offcanvas" variant="inset">
       <SidebarHeader>
@@ -119,17 +120,39 @@ export function ProjectSidebar({ orgId, projectId }: { orgId: string; projectId:
               <Link href={`/dashboard/project/${projectId}`}> <IconLayoutDashboard className="mr-2" /> Overview </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={pathname === `/dashboard/project/${projectId}/curriculum`}>
-              <Link href={`/dashboard/project/${projectId}/curriculum`}>
-                <IconBook className="mr-2" /> Curriculum
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          {projectType === 'curriculum-creation' && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname === `/dashboard/project/${projectId}/curriculum`}>
+                <Link href={`/dashboard/project/${projectId}/curriculum`}>
+                  <IconBook className="mr-2" /> Curriculum
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
+          {projectType?.toLowerCase().replace(/[^a-z]/g, '') === 'enrollmentprocess' && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild>
+
+                <Link href={`/dashboard/project/${projectId}/enrollment-process`}>
+                  <IconBook className="mr-2" />  Enrollment Process
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
+          {/* Show Course Offering only for course-offering projects */}
+          {projectType?.toLowerCase().replace(/[^a-z]/g, '') === 'courseoffering' && (
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild isActive={pathname === `/dashboard/project/${projectId}/course-offering`}>
+                <Link href={`/dashboard/project/${projectId}/course-offering`}>
+                  <IconBook className="mr-2" /> Course Offering
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          )}
           {/* Render nav items based on requirements */}
           {!roleLoading && userRole !== 'faculty' && (
             <>
-              {projectType === 'admission' && (
+              {projectType === 'Admission' && (
                 <SidebarMenuItem>
                   <SidebarMenuButton asChild isActive={pathname === `/dashboard/project/${projectId}/admission`}>
                     <Link href={`/dashboard/project/${projectId}/admission`}>
@@ -182,6 +205,10 @@ export function ProjectSidebar({ orgId, projectId }: { orgId: string; projectId:
               )}
             </>
           )}
+
+
+
+
         </SidebarMenu>
         <div className="mt-auto p-4">
           <NavUser user={user} />

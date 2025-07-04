@@ -88,7 +88,7 @@ export default function ProjectSettingsPage() {
       <SidebarInset>
         <ProjectHeader project={project} />
         <main className="flex flex-col items-center gap-8 p-8">
-          <Card className="w-full max-w-lg">
+          <Card className="w-full">
             <CardContent>
               {project ? (
                 <>

@@ -52,7 +52,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   const fetchTheme = useCallback(async () => {
     if (!organization?.id) {
-      console.log('No organization ID, using default theme');
       setTheme(defaultTheme);
       return;
     }
@@ -61,7 +60,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
     setError(null);
 
     try {
-      console.log('Fetching theme for organization:', organization.id);
       const { data, error: fetchError } = await supabase
         .from('organization_themes')
         .select('primary_color, secondary_color, accent_color')
@@ -73,7 +71,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
         setError(fetchError.message);
         setTheme(defaultTheme);
       } else if (data) {
-        console.log('Theme fetched successfully:', data);
         setTheme({
           primary_color: data.primary_color,
           secondary_color: data.secondary_color,
@@ -98,7 +95,6 @@ export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
 
   // Apply theme to CSS custom properties
   useEffect(() => {
-    console.log('Applying theme to CSS variables:', theme);
     const root = document.documentElement;
     root.style.setProperty('--theme-primary', theme.primary_color);
     root.style.setProperty('--theme-secondary', theme.secondary_color);
